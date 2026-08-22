@@ -242,7 +242,7 @@ book-to-skill/
 
 book-to-skill ships **no book content** — not a single page. It's a converter you point at files you already own.
 
-- **Processing is local.** Extraction and analysis run on your machine. Your files are never uploaded by this tool. (If your agent's model runs in the cloud, the text you feed it follows that provider's normal data terms — same as any prompt.)
+- **Extraction is local; analysis and skill generation depend on your agent host.** This project has no hosted backend and does not upload source files to a service operated by this project. If Copilot, Amp, Claude Code, or another host uses a cloud model, text supplied to the agent is handled under that provider's data terms and privacy controls.
 - **`--mode technical` is the exception.** Docling may download models on first use and is **not guaranteed offline**. Use `--mode text` for prose PDFs.
 - **Windows work directory.** Output defaults to `%LOCALAPPDATA%\book-to-skill\work`. Override with `BOOK_SKILL_WORKDIR`.
 - **You use your own copy.** Bring a book you bought, docs your company owns, or papers you have the right to read.
