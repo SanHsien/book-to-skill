@@ -66,7 +66,7 @@ GitHub Pages API 對本 fork 回 404（未開站）。`git ls-files` 無 `.pdf` 
 | R-03 | P2 | `.gitignore` 不擋 `*.pdf` / `*.epub` / 產生技能；`test_repo_hygiene.py` 只閘 bytecode。 | `.gitignore`；`git check-ignore` 對 `book.pdf` 不匹配 | 至少 ignore 常見電子書副檔名與 `full_text.txt`。提交前人工檢查仍必要。 |
 | R-04 | P2 | `CONTRIBUTING.md`、`docs/install.md` 的 clone / `npx` / pip URL 全指 `virgiliojr94`。跟本 fork `README.md` 的 SanHsien 安裝路徑不一致。 | `CONTRIBUTING.md:21`；`docs/install.md:17-25` | 加 fork 註記：產品安裝可走上游；要本線文件／Windows gate 才 clone SanHsien。 |
 | R-05 | P2 | Bandit Medium B314：stdlib `ElementTree.fromstring` 解析 DOCX XML。已有 `validate_docx_xml_safety` 掃 `<!DOCTYPE` / `<!ENTITY>`，CI 刻意只閘 High。 | `docx.py:54`、`docx.py:93-108`；CI 註解將 ratchet 到 medium | 維持現況可接受。要關閉 finding 再換 `defusedxml` 並補對抗測試。 |
-| R-06 | P3 | `README.ru.md` 仍寫真相源是英文 `README.md`，但主檔已是繁中。 | `README.ru.md` 語言切換 | 標成上游殘留，或改連 `README.en.md`。非阻斷。 |
+| R-06 | P3 | ~~`README.ru.md` 與繁中主檔真相源衝突。~~ **已關閉（2026-08-22）：** 刪除俄文 README，公開入口只留繁中／英文。 | 曾：`README.ru.md` | 上游再加第三語系時略過。 |
 | R-07 | P3 | 繁中 README 用 SanHsien CI badge，英文 README 仍用上游 release / Trendshift，沒有本 fork CI。Sponsor 兩邊都指上游（正確）。 | `README.md` / `README.en.md` | 英文頁加一行 fork CI，避免「這是哪個 repo」混淆。 |
 | R-08 | P3 | `codeql.yml` 仍 pin tag（`checkout@v7.0.1`、`codeql-action@v4`），與 ci／deploy 的 SHA pin 不一致。 | `.github/workflows/codeql.yml` | 下次 Dependabot 週期改 SHA。 |
 
@@ -90,7 +90,7 @@ GitHub Pages API 對本 fork 回 404（未開站）。`git ls-files` 無 `.pdf` 
 - **沒有**獨立 Windows 格式樣本矩陣；Windows job 跑的是與 `dev_check.ps1` 相同的 gate（CI 不安 extra）。
 - `dev_check.ps1` **不含** bandit、MkDocs build、dependency-review。那些只在 GitHub Ubuntu jobs。
 - **不宣稱** fork 托管官方文件站；`mkdocs.yml` / `docs/CNAME` 仍是 `booktoskill.is-a.dev`。
-- **不宣稱** `docs/install.md`、`CONTRIBUTING.md`、`README.ru.md` 已完全 fork 化。
+- **不宣稱** `docs/install.md`、`CONTRIBUTING.md` 已完全 fork 化。
 - 產生技能目錄（`~/.claude/skills/<slug>/` 等）不在本 repo 工作樹，未掃描是否含原文。
 
 ## 建議下一步（未動手）

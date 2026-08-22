@@ -17,7 +17,7 @@
 
 | 項目 | 說明 |
 |---|---|
-| `README.md` | 繁中主檔；原文移到 `README.en.md` |
+| `README.md` / `README.en.md` | 繁中主檔 + 英文鏡像；不保留 `README.ru.md` 或其他語系 |
 | `AGENTS.md` / `CLAUDE.md` | 本 fork 的 AI 維護單一真相源 |
 | `NOTICE.md` / `FORK.md` | 來源、授權與同步說明 |
 | `tools/dev_check.ps1` | Windows 本機一鍵 gate |
@@ -37,6 +37,7 @@
 不要 `git push upstream`。同步方式見 [`docs/UPSTREAM.md`](docs/UPSTREAM.md)。
 
 上游更新 `README.md` 時，把新內容併進 `README.en.md`，再把對應段落翻進 `README.md`。
+不要把上游的第三語系 README 合回來。
 
 ## 換一台電腦怎麼開發
 

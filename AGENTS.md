@@ -36,7 +36,8 @@
 - 修 bug 先補可重現失敗測試，再做最小修正。
 - 上游公開 CLI、`SKILL.md` 步驟與 examples 視為相容性契約。
 - 不為了套格式而大改上游程式；Ruff 只閘 E9（語法）與 F（pyflakes）。
-- 使用繁體中文回覆；使用者文件以繁中為主，公開入口同步維護 `README.en.md`。
+- 使用繁體中文回覆；使用者文件以繁中為主，公開入口只維護 `README.md` 與 `README.en.md`。
+- 不要新增或恢復其他語言 README（例如 `README.ru.md`）。上游若加第三語系，記錄略過即可。
 - 上游更新 README 時：新英文進 `README.en.md`，再把對應段落翻進 `README.md`。
 - **不要手改 `CHANGELOG.md`。** 它由 git-cliff 在 release 時從 Conventional Commits 產生。
 - PR 標題必須是 Conventional Commit（CI 會檢查）。

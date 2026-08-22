@@ -30,6 +30,7 @@ python tools\check_upstream_updates.py --strict
 Baseline 代表「已審查」，不代表「全部已合併」。
 
 README 衝突的解法：上游新內容併進 `README.en.md`，再把對應段落翻進 `README.md`。
+第三語系檔（例如 `README.ru.md`）略過，不要合進本 fork。
 
 ## 2026-08-22：fork 起點
 

@@ -1,5 +1,11 @@
 # 維護決策
 
+## 2026-08-22：公開文件只保留繁中與英文
+
+**決定**：刪除 `README.ru.md`。公開入口只維護 `README.md`（繁體中文）與 `README.en.md`（英文）。上游若再加其他語言 README，本 fork 不採用。
+
+**理由**：本線的使用者文件契約是繁中為主、英文鏡像。第三語言會讓語言切換、真相源與同步成本失控（俄文頁仍把英文 `README.md` 當 canonical，與本 fork 已不符）。產品 `SKILL.md` 與上游 `docs/*.md` 維持英文原文，不另開語系檔。
+
 ## 2026-08-22：建立 Windows-first 維護型 fork
 
 **決定**：fork `virgiliojr94/book-to-skill`，保留 MIT 授權與完整歷史，預設分支維持 `master` 以降低與上游同步摩擦。本線聚焦繁中文件、Windows 開發 gate、Windows CI，以及逐筆審查的上游追蹤。
