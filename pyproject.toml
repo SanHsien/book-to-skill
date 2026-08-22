@@ -9,6 +9,9 @@ description = "Convert books and documents into structured, on-demand agent skil
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "MIT" }
+dependencies = [
+    "defusedxml",
+]
 
 [project.scripts]
 book-to-skill = "book_to_skill.cli:main"

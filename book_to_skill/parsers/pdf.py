@@ -150,6 +150,11 @@ def extract_with_docling(pdf_path: str) -> str | None:
         from docling.datamodel.base_models import InputFormat
         from docling.document_converter import PdfFormatOption
 
+        print(
+            "  [warn] --mode technical uses docling; first run may download "
+            "models and is not guaranteed offline.",
+            file=sys.stderr,
+        )
         pipeline_options = PdfPipelineOptions()
         pipeline_options.do_ocr = False
         pipeline_options.do_table_structure = True

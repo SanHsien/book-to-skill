@@ -47,11 +47,16 @@ def extract_docx_with_zipfile(docx_path: str) -> str | None:
     # DOCTYPE/ENTITY declarations before the XML ever reaches the parser.
     validate_docx_xml_safety(docx_path)
     try:
-        import xml.etree.ElementTree as ET
-
+        from defusedxml.ElementTree import fromstring as xml_fromstring
+    except ImportError as exc:
+        raise ExtractionError(
+            "DOCX zipfile parser requires defusedxml.\n"
+            "  python -m pip install defusedxml"
+        ) from exc
+    try:
         with zipfile.ZipFile(docx_path) as zf:
             xml_bytes = zf.read("word/document.xml")
-        root = ET.fromstring(xml_bytes)
+        root = xml_fromstring(xml_bytes)
         ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
         parts: list[str] = []
 
@@ -85,6 +90,8 @@ def extract_docx_with_zipfile(docx_path: str) -> str | None:
         body = root.find(f"{ns}body")
         emit_block(body if body is not None else root)
         return "\n".join(parts) if parts else None
+    except ExtractionError:
+        raise
     except Exception as e:
         print(f"  [warn] extract_docx_with_zipfile failed: {type(e).__name__}: {e}", file=sys.stderr)
         return None

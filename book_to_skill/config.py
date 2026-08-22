@@ -2,12 +2,27 @@ import os
 import tempfile
 from pathlib import Path
 
-OUTPUT_DIR = Path(
-    os.environ.get(
-        "BOOK_SKILL_WORKDIR",
-        str(Path(tempfile.gettempdir()) / "book_skill_work"),
-    )
-)
+
+def default_output_dir() -> Path:
+    """Work directory for extracted text and metadata.
+
+    ``BOOK_SKILL_WORKDIR`` always wins. Otherwise Windows uses a per-user
+    ``%LOCALAPPDATA%\\book-to-skill\\work`` path instead of the shared
+    ``%TEMP%\\book_skill_work`` default, which is predictable on multi-user
+    machines. POSIX keeps ``<tempdir>/book_skill_work``.
+    """
+    override = os.environ.get("BOOK_SKILL_WORKDIR")
+    if override:
+        return Path(override).expanduser()
+    if os.name == "nt":
+        local_app = os.environ.get("LOCALAPPDATA")
+        if local_app:
+            return Path(local_app) / "book-to-skill" / "work"
+        return Path.home() / "AppData" / "Local" / "book-to-skill" / "work"
+    return Path(tempfile.gettempdir()) / "book_skill_work"
+
+
+OUTPUT_DIR = default_output_dir()
 OUTPUT_TEXT = OUTPUT_DIR / "full_text.txt"
 OUTPUT_META = OUTPUT_DIR / "metadata.json"
 

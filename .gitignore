@@ -8,6 +8,15 @@ venv/
 .env
 .env.*
 
+# Local books and extractor output — never commit
+*.pdf
+*.epub
+*.mobi
+*.azw
+*.azw3
+/full_text.txt
+/metadata.json
+
 # Generated local / CI reports
 upstream-review-report.md
 dependency-freshness-report.md
