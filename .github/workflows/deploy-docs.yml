@@ -70,6 +70,6 @@ jobs:
           sed -i -E 's,\]\(\.\./README\.md\),](guide.md),g' docs/*.md
       - name: Build
         run: mkdocs build
-      - name: Deploy to gh-pages (master push only)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+      - name: Deploy to gh-pages (upstream master only)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master' && github.repository == 'virgiliojr94/book-to-skill'
         run: mkdocs gh-deploy --force

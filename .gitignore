@@ -1,5 +1,20 @@
 *.pyc
 __pycache__/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.env
+.env.*
+
+# Generated local / CI reports
+upstream-review-report.md
+dependency-freshness-report.md
+
+# Local agent / editor noise
+Thumbs.db
+.DS_Store
 
 # Agent session traces (Stone CLI) — never commit
 .stone/
