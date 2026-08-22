@@ -209,7 +209,7 @@ ocrmypdf input.pdf output.pdf
 
 book-to-skill **不附帶任何書籍內容**。它是轉換器，你指向自己已經擁有的檔案。
 
-- **處理在本機。** 抽取與分析在你的機器上跑，這個工具不會上傳檔案。（若 Agent 的模型在雲端，你餵進去的文字仍受該供應商條款約束 — 跟一般提示詞一樣。）
+- **抽取在本機；分析／技能生成取決於 Agent 宿主。** 這個專案沒有 hosted backend，也不會自行把來源檔案上傳到本專案服務；但如果 Copilot、Amp、Claude Code 或其他宿主使用雲端模型，提供給 Agent 的文字會依該供應商的資料條款與隱私設定處理。
 - **`--mode technical` 例外。** 走 docling 時，第一次執行可能下載模型，**不保證離線**。文字型 PDF 請用 `--mode text`。
 - **Windows 工作目錄。** 預設寫入 `%LOCALAPPDATA%\book-to-skill\work`，可用環境變數 `BOOK_SKILL_WORKDIR` 改到你指定的私人目錄。
 - **用你自己的複本。** 你買的書、公司擁有的文件、或你有權閱讀的論文。
