@@ -63,6 +63,18 @@ book-to-skill is built for a different job: you want to go deep on a specific to
 
 ---
 
+**"Is book-to-skill fully offline? What happens to my document?"**
+
+The extractor runs on your machine and this project does not operate a hosted backend that uploads your source files. However, **the complete workflow is not automatically offline**:
+
+- The generated skill is assembled by the host agent you run the converter through (for example GitHub Copilot CLI, Amp, or Claude Code). If that host uses a cloud model, text supplied to the agent is handled under that provider's terms and privacy controls.
+- Technical mode uses Docling for structure-aware extraction. Its first run may download models, so that path is not guaranteed to be offline.
+- Generated skills remain local unless you explicitly publish or sync them. Treat copyrighted or confidential source material according to its license, policy, and your organization's data-handling rules.
+
+If strict offline processing is a requirement, verify both the extractor configuration **and the agent/model host** you plan to use; do not rely on the word "local" alone.
+
+---
+
 **"My PDF is a scan and extraction stops right away. Why?"**
 
 Because a scanned PDF is a stack of page images — there is no text in it to extract. Every tool in the PDF chain reads a text layer, so a scan yields nothing no matter which one runs.
