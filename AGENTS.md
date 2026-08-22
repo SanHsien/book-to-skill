@@ -5,7 +5,7 @@
 ## 專案定位
 
 這是 [`virgiliojr94/book-to-skill`](https://github.com/virgiliojr94/book-to-skill) 的 MIT fork。
-核心價值是把技術書與文件在**本機離線**拆成結構化 Agent 技能：核心索引 + 各章獨立檔，查詢時只按需載入對應章節。
+核心價值是把技術書與文件以**本機抽取為主**的流程拆成結構化 Agent 技能：核心索引 + 各章獨立檔，查詢時只按需載入對應章節。抽取器本身不會把文件上傳到本專案服務，但後續由 Copilot、Amp、Claude Code 等宿主 Agent 分析／生成技能時，內容是否送往雲端取決於該宿主與所選模型；technical mode 的 Docling 首次執行也可能下載模型，因此不要把整體流程概括成「完全離線」。
 
 `origin` 是 `SanHsien/book-to-skill`，`upstream` 是原作者 repo，預設分支皆為 `master`。
 保留上游作者、MIT 授權與產品 `SKILL.md`。本 fork 的維護差異記在 [`FORK.md`](FORK.md) 與 [`docs/DECISIONS.md`](docs/DECISIONS.md)。
