@@ -28,7 +28,7 @@
 ```powershell
 python -m venv .venv
 .venv\Scripts\python -m pip install --upgrade pip
-.venv\Scripts\python -m pip install pytest ruff
+.venv\Scripts\python -m pip install pytest ruff defusedxml
 $env:PYTHONUTF8 = "1"
 pwsh -NoProfile -File tools\dev_check.ps1
 .venv\Scripts\python scripts\extract.py --check
@@ -51,6 +51,8 @@ Windows 上的外部工具：
 | 掃描 PDF | OCR（例如 `ocrmypdf`） | 先做出文字層再丟給抽取器 |
 
 沒裝選配工具時，`--check` 會列出缺什麼；純 Markdown／文字測試不需要它們。
+
+Windows 預設工作目錄是 `%LOCALAPPDATA%\book-to-skill\work`。可用 `BOOK_SKILL_WORKDIR` 覆寫。`--mode technical`（docling）第一次跑可能下載模型，不要當成離線路徑。
 
 ## Canonical gate
 

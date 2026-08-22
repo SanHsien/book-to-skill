@@ -1,5 +1,16 @@
 # 維護決策
 
+## 2026-08-22：關閉可修的 review findings（不回貢）
+
+**決定**：在本 fork 修 R-01～R-05、R-07、R-08。不送上游。
+
+- Windows 預設工作目錄改 `%LOCALAPPDATA%\book-to-skill\work`。
+- DOCX zipfile 解析改 `defusedxml`（必要依賴）。
+- `.gitignore` 擋電子書與根目錄抽取產出。
+- `CONTRIBUTING.md` / `docs/install.md` / `SECURITY.md` 標明本 fork 與上游分流。
+- `--mode technical` 明確警告可能外連；不假裝已驗證 docling 離線。
+- CodeQL action 改 SHA pin。
+
 ## 2026-08-22：公開文件只保留繁中與英文
 
 **決定**：刪除 `README.ru.md`。公開入口只維護 `README.md`（繁體中文）與 `README.en.md`（英文）。上游若再加其他語言 README，本 fork 不採用。

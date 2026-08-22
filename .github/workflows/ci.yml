@@ -24,8 +24,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install pytest
-        run: pip install pytest
+      - name: Install pytest and defusedxml
+        run: pip install pytest defusedxml
       - name: Run test suite
         run: pytest tests/ -q
 
@@ -43,8 +43,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
-      - name: Install pytest and ruff
-        run: python -m pip install pytest ruff
+      - name: Install pytest, ruff, and defusedxml
+        run: python -m pip install pytest ruff defusedxml
       - name: Canonical Windows development gate
         shell: pwsh
         run: pwsh -NoProfile -File tools/dev_check.ps1
@@ -97,7 +97,6 @@ jobs:
       - name: Bandit — gate on HIGH severity
         # Hard gate: only HIGH-severity / MEDIUM-confidence findings fail CI, to
         # avoid blocking on the known-acceptable subprocess (pip install) calls.
-        # Ratchet down to medium once the open B314 docx-XML finding is hardened.
         run: bandit -q -r book_to_skill scripts tools --severity-level high --confidence-level medium
       - name: Bandit — report MEDIUM+ (informational)
         run: bandit -q -r book_to_skill scripts tools -ll || true

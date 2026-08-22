@@ -16,7 +16,8 @@
 > **This repository is a Windows-first maintenance fork** of [`virgiliojr94/book-to-skill`](https://github.com/virgiliojr94/book-to-skill), kept under the MIT License with full git history. Product behaviour stays with upstream; this line adds Traditional Chinese docs, a Windows development gate, and reviewed upstream tracking. See [`FORK.md`](FORK.md).
 
 <p align="center">
-  <a href="https://github.com/virgiliojr94/book-to-skill/releases"><img src="https://img.shields.io/github/v/release/virgiliojr94/book-to-skill?style=for-the-badge&color=blueviolet" alt="Latest release"></a>
+  <a href="https://github.com/SanHsien/book-to-skill/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/SanHsien/book-to-skill/ci.yml?style=for-the-badge&label=CI" alt="CI"></a>
+  <a href="https://github.com/virgiliojr94/book-to-skill/releases"><img src="https://img.shields.io/github/v/release/virgiliojr94/book-to-skill?style=for-the-badge&color=blueviolet" alt="Upstream latest release"></a>
   <img src="https://img.shields.io/badge/Agent_Skills-Open_Standard-blueviolet?style=for-the-badge" alt="Agent Skills standard">
   <img src="https://img.shields.io/badge/PDF%20%E2%80%A2%20EPUB%20%E2%80%A2%20DOCX%20%E2%80%A2%20MD%20%E2%80%A2%20HTML%20%E2%80%A2%20RTF%20%E2%80%A2%20MOBI-supported-green?style=for-the-badge" alt="Formats supported">
   <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="MIT License">
@@ -242,6 +243,8 @@ book-to-skill/
 book-to-skill ships **no book content** — not a single page. It's a converter you point at files you already own.
 
 - **Processing is local.** Extraction and analysis run on your machine. Your files are never uploaded by this tool. (If your agent's model runs in the cloud, the text you feed it follows that provider's normal data terms — same as any prompt.)
+- **`--mode technical` is the exception.** Docling may download models on first use and is **not guaranteed offline**. Use `--mode text` for prose PDFs.
+- **Windows work directory.** Output defaults to `%LOCALAPPDATA%\book-to-skill\work`. Override with `BOOK_SKILL_WORKDIR`.
 - **You use your own copy.** Bring a book you bought, docs your company owns, or papers you have the right to read.
 - **The output is your notes.** A generated skill is a structured, synthesized derivative — framework names, definitions, takeaways — not a reproduction of the text. The skill explicitly never copies raw passages (see Quality Rule #7). Treat it like handwritten study notes: yours, for personal use.
 - **Don't redistribute.** Publishing or sharing a generated skill of a copyrighted work can infringe the rights holder. Keep skills of third-party books private. Internal docs, your own writing, and openly-licensed material are fine to share within the bounds of their license.

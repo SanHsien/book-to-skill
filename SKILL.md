@@ -117,7 +117,7 @@ Store the answer as `BOOK_TYPE`:
 - Option 3 → `BOOK_TYPE=text`
 
 **If `BOOK_TYPE=technical`**, inform the user before proceeding:
-> "📐 Technical mode selected — using Docling for structure-aware extraction (tables, code blocks, formulas preserved as markdown). This takes ~1.5s per page, so expect a few minutes for longer sources. Starting now…"
+> "📐 Technical mode selected — using Docling for structure-aware extraction (tables, code blocks, formulas preserved as markdown). This takes ~1.5s per page, so expect a few minutes for longer sources. First run may download models and is not guaranteed offline. Starting now…"
 
 **If `BOOK_TYPE=text`**, inform:
 > "📄 Text mode selected — using the fastest suitable extractor for each file type. Plain text/Markdown/HTML are usually ready in seconds; PDFs use pdftotext when available."
@@ -163,17 +163,20 @@ Before extraction, the script checks optional Python packages needed for the det
 
 **Tip — preflight the environment:** run `"$PYTHON_BIN" "$SCRIPT_PATH" --check` to print a per-format report of which extractors are installed and the exact command to install whatever is missing, without processing any file. Useful when a user reports a setup or quality problem.
 
-This creates:
-- `<tempdir>/book_skill_work/full_text.txt` — combined extracted text of all sources with clear visually demarcated boundaries.
-- `<tempdir>/book_skill_work/metadata.json` — overall combined size, words, pages, token counts, dropped EPUB image counts, and a detailed list of individual processed `sources`.
+This creates work files whose **exact paths are printed** by the extractor (`Text ->` and `Meta ->`). Do not assume `/tmp/book_skill_work`.
 
-Read `<tempdir>/book_skill_work/metadata.json` to inspect the results.
+Defaults when `BOOK_SKILL_WORKDIR` is unset:
+
+- Windows: `%LOCALAPPDATA%\book-to-skill\work\full_text.txt` and `metadata.json`
+- POSIX: `<tempdir>/book_skill_work/full_text.txt` and `metadata.json`
+
+Read the printed `metadata.json` path to inspect the results.
 
 ---
 
 ## Step 2.5 — Pre-flight cost estimate
 
-Read `<tempdir>/book_skill_work/metadata.json` and present the user with an estimate **before doing any generation**:
+Read the extractor-printed `metadata.json` path and present the user with an estimate **before doing any generation**:
 
 ```
 📖 Sources detected: <total_sources> source(s)
@@ -547,10 +550,16 @@ import os
 import shutil
 import tempfile
 from pathlib import Path
-shutil.rmtree(
-    os.environ.get("BOOK_SKILL_WORKDIR", Path(tempfile.gettempdir()) / "book_skill_work"),
-    ignore_errors=True,
-)
+
+override = os.environ.get("BOOK_SKILL_WORKDIR")
+if override:
+    workdir = Path(override).expanduser()
+elif os.name == "nt":
+    local_app = os.environ.get("LOCALAPPDATA") or str(Path.home() / "AppData" / "Local")
+    workdir = Path(local_app) / "book-to-skill" / "work"
+else:
+    workdir = Path(tempfile.gettempdir()) / "book_skill_work"
+shutil.rmtree(workdir, ignore_errors=True)
 PY
 ```
 
@@ -653,7 +662,7 @@ Read and parse the existing skill's files:
 - Read `$SKILLS_HOME/<skill_name>/glossary.md`, `$SKILLS_HOME/<skill_name>/patterns.md`, and `$SKILLS_HOME/<skill_name>/cheatsheet.md` to see what terms and frameworks are already indexed.
 
 ### 2. Match Content & Identify Revisions vs. Additions
-Analyze the new extracted text in `<tempdir>/book_skill_work/full_text.txt` to identify if the new content represents:
+Analyze the new extracted text in the extractor-printed `full_text.txt` path to identify if the new content represents:
 - **Updates/Revisions to existing chapters**: If a section of the new content directly updates or expands an existing chapter's topic, read the existing chapter file, merge the new details into it, and rewrite the file.
 - **New additions**: If the content introduces new chapters, papers, or separate sections, create **new chapter summary files** under `chapters/`. Start numbering these files after the highest existing chapter number (e.g. if the existing chapters stop at `ch12`, create `ch13-*.md`, `ch14-*.md`, etc.).
 

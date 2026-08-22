@@ -1,5 +1,13 @@
 # Contributing to book-to-skill
 
+This repository is the **SanHsien Windows-first maintenance fork** of
+[`virgiliojr94/book-to-skill`](https://github.com/virgiliojr94/book-to-skill).
+Open pull requests against [`SanHsien/book-to-skill`](https://github.com/SanHsien/book-to-skill).
+Product-only contributions that belong upstream should go to the original repo.
+
+本 repo 是維護型 fork。要本線的繁中文件與 Windows gate，請 clone 下面的 `SanHsien` URL；
+只要官方產品轉換器，可改用上游。
+
 Thanks for helping improve book-to-skill. This project turns books and documents
 into structured agent skills; contributions that make extraction more robust,
 generation higher-signal, or the docs clearer are all welcome.
@@ -16,6 +24,20 @@ generation higher-signal, or the docs clearer are all welcome.
   long passages. Respect source licenses (see the README's Copyright section).
 
 ## Development
+
+This fork (Windows PowerShell):
+
+```powershell
+git clone https://github.com/SanHsien/book-to-skill.git
+cd book-to-skill
+python -m venv .venv
+.venv\Scripts\python -m pip install --upgrade pip
+.venv\Scripts\python -m pip install pytest ruff defusedxml
+pwsh -NoProfile -File tools\dev_check.ps1
+.venv\Scripts\python scripts\extract.py --check
+```
+
+Upstream product clone (Linux / macOS):
 
 ```bash
 git clone https://github.com/virgiliojr94/book-to-skill.git

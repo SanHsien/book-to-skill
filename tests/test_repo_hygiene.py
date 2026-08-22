@@ -60,3 +60,26 @@ def test_no_compiled_bytecode_is_tracked():
         + ", ".join(offenders)
         + " — remove with `git rm --cached <path>`"
     )
+
+
+def test_gitignore_covers_ebooks_and_extractor_output():
+    """Local books and extractor dumps must not be easy to `git add` by accident."""
+    gitignore = (REPO_ROOT / ".gitignore").read_text(encoding="utf-8")
+    for pattern in ("*.pdf", "*.epub", "*.mobi", "/full_text.txt", "/metadata.json"):
+        assert pattern in gitignore, f"missing gitignore pattern: {pattern}"
+
+    for rel in ("book.pdf", "full_text.txt"):
+        checked = _git("check-ignore", "--no-index", "-q", rel)
+        if checked.returncode not in (0, 1):
+            pytest.skip(f"git check-ignore failed: {checked.stderr}")
+        assert checked.returncode == 0, f"{rel} should be gitignored"
+
+
+def test_docx_zipfile_parser_does_not_use_stdlib_etree():
+    """R-05: zipfile DOCX path must parse with defusedxml, not xml.etree."""
+    source = (REPO_ROOT / "book_to_skill" / "parsers" / "docx.py").read_text(
+        encoding="utf-8"
+    )
+    assert "xml.etree" not in source
+    assert "defusedxml.ElementTree" in source
+
