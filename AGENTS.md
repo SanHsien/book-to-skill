@@ -39,7 +39,8 @@
 - 使用繁體中文回覆；使用者文件以繁中為主，公開入口同步維護 `README.en.md`。
 - 上游更新 README 時：新英文進 `README.en.md`，再把對應段落翻進 `README.md`。
 - **不要手改 `CHANGELOG.md`。** 它由 git-cliff 在 release 時從 Conventional Commits 產生。
-- PR 標題必須是 Conventional Commit（CI 會檢查）；合併前先讀 `gh pr diff <編號>`。
+- PR 標題必須是 Conventional Commit（CI 會檢查）。
+- **合併任何 PR 前先讀 diff**（包含 Dependabot 開的）：`gh pr diff <編號>`。CI 綠燈證明的是「測試沒紅」，不是「改了什麼、該不該進 `master`」——lockfile 的連鎖升級、transitive major、跨出宣告範圍的變更，只有讀 diff 看得到。核准或合併訊息要寫出讀到什麼、為什麼可接受。
 - `REVIEW.md` 是風險快照，不是每個一般 bug 的流水帳。
 
 ## 上游處理
