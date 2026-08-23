@@ -81,7 +81,7 @@ pwsh -NoProfile -File tools\dev_check.ps1
 ## 對外邊界：PR 只打本 fork
 
 - **PR、push、release 一律指向 `SanHsien/book-to-skill`。** 對上游 `virgiliojr94/book-to-skill` 開 PR、push 或發 release
-  需要主人在當次對話明確同意回貢；「fork 一份」「建開發環境」「比照其他 repo」都不是同意。
+  需要維護者在當次對話明確同意回貢；「fork 一份」「建開發環境」「比照其他 repo」都不是同意。
 - 根因是機制不是粗心：`gh` 在 fork clone 的**預設 repo 就是上游**（`gh repo set-default --view` 會回
   `virgiliojr94/book-to-skill`），裸跑 `gh pr create` 必然打上去。每個 clone 先跑一次
   `gh repo set-default SanHsien/book-to-skill`。
