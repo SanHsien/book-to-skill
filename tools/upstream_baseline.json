@@ -1,0 +1,9 @@
+{
+  "repo": "https://github.com/virgiliojr94/book-to-skill.git",
+  "branch": "master",
+  "reviewed_through": "3a97a7115ab3c82edf47f315b544fbcefdd8559c",
+  "reviewed_date": "2026-08-23",
+  "notes": "SanHsien fork baseline at clone time. HEAD is upstream master commit Update README.md (#179). 2026-08-22 另盤點上游 PR／issue／分支：引用 #117、#181、#175、#178、#182 五筆（cherry-pick，保留原作者），其餘評估後不引用，理由記在 docs/UPSTREAM.md。 2026-08-23：master 增量 0、PR/issue 水位未動；分支表原本用「等」蓋掉四條 behind 很小的分支（eval/v0-preregistration、virgiliojr94-patch-1、docs/shorten-readme-mascots、gh-pages），已逐條補在 docs/UPSTREAM.md 並訂下「behind 個位數的分支必須單獨列」的判準。 2026-08-23（補二）：上一輪 PR 盤點只查 open，漏了 #183（本 fork 端誤開到上游後關閉）與 #184（第三方 open PR）。#184 引用「精確清理」半部（metadata.json 記 workdir、SKILL.md Step 10 改讀回該 run 的 workdir），不引用 per-run 目錄半部。判準補上：PR/issue 一律 --state all。",
+  "reviewed_pr_through": 184,
+  "reviewed_issue_through": 174
+}
