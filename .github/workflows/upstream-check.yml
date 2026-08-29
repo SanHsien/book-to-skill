@@ -25,6 +25,11 @@ jobs:
     env:
       PYTHONUTF8: "1"
       PYTHONIOENCODING: "utf-8"
+      # The checker shells out to `gh` for the upstream PR and issue lists, and
+      # `gh` has no credentials in Actions unless one is handed to it. Without
+      # this it cannot enumerate them and fails closed (exit 2), which reads as
+      # "upstream check broken" rather than "token missing".
+      GH_TOKEN: ${{ github.token }}
 
     steps:
       - name: Check out full history
