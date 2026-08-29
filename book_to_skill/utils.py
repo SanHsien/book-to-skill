@@ -101,12 +101,13 @@ def estimate_tokens(text: str) -> int:
 
 
 # Explicit chapter heading: "Chapter 5", "Capítulo 5: ...", "Chapter 1. Intro".
-# Also French/German/Italian/Dutch chapter words (chapitre/kapitel/capitolo/
-# hoofdstuk), matching the ToC languages added alongside. "ch.?" stays last so
-# the longer words match in full. Captures the number (bounded to 1..99 — drops
-# years like "2025.") and whatever follows it on the line, so we can reject prose.
+# Also French/German/Italian/Dutch/Vietnamese chapter words (chapitre/kapitel/
+# capitolo/hoofdstuk/chương), matching the ToC languages added alongside. "ch.?"
+# stays last so the longer words match in full. Captures the number (bounded to
+# 1..99 — drops years like "2025.") and whatever follows it on the line, so we
+# can reject prose.
 _EXPLICIT_CHAPTER = re.compile(
-    r"^\s*(?:chapter|chapitre|kapitel|cap[ií]tulo|capitolo|hoofdstuk|ch\.?)\s*(?:(\d{1,2})|(?P<roman>[IVXLCDMivxlcdm]{1,7}))\b(?P<rest>.*)$",
+    r"^\s*(?:chapter|chapitre|kapitel|cap[ií]tulo|capitolo|hoofdstuk|chương|ch\.?)\s*(?:(\d{1,2})|(?P<roman>[IVXLCDMivxlcdm]{1,7}))\b(?P<rest>.*)$",
     re.IGNORECASE,
 )
 # A heading's number is followed by end-of-line, punctuation (“. : - —“), or a
@@ -172,6 +173,29 @@ _TH_DIGITS = "๐-๙"
 _TH_DIGIT_MAP = str.maketrans("๐๑๒๓๔๕๖๗๘๙", "0123456789")
 _TH_CHAPTER = re.compile(
     rf"^\s*(?:#{{1,6}}\s+)?(?:บทที่|ตอนที่|ภาคที่|บท|ตอน|ภาค)\s*([0-9{_TH_DIGITS}]+)\b"
+)
+
+# Hindi (Devanagari) chapter headings: "अध्याय 1", "अध्याय १", "## अध्याय 2".
+# अध्याय ("chapter") + a number. Devanagari digits (U+0966-U+096F) are positional
+# like Arabic, so — as with Thai — only a digit remap is needed, no composition.
+# Optional Markdown "#" prefix so "## अध्याय १" is recognized in converted ebooks.
+# Scoped to the digit form (not word ordinals like "पहला अध्याय") and requiring a
+# number keeps prose that merely uses the word अध्याय from matching.
+_HI_DIGITS = "०-९"
+_HI_DIGIT_MAP = str.maketrans("०१२३४५६७८९", "0123456789")
+_HI_CHAPTER = re.compile(
+    rf"^\s*(?:#{{1,6}}\s+)?अध्याय\s*([0-9{_HI_DIGITS}]+)\b"
+)
+
+# Bengali chapter headings: "অধ্যায় 1", "অধ্যায় ১", "## অধ্যায় 2".
+# অধ্যায় ("chapter") + a number. Bengali digits (U+09E6-U+09EF) are positional
+# like the Hindi block above, so only a digit remap is needed. Optional Markdown
+# "#" prefix so "## অধ্যায় ১" is recognized in converted ebooks. Requiring a
+# number keeps prose that merely uses the word অধ্যায় from matching.
+_BN_DIGITS = "০-৯"
+_BN_DIGIT_MAP = str.maketrans("০১২৩৪৫৬৭৮৯", "0123456789")
+_BN_CHAPTER = re.compile(
+    rf"^\s*(?:#{{1,6}}\s+)?অধ্যায়\s*([0-9{_BN_DIGITS}]+)\b"
 )
 
 # Korean chapter headings: "제1장 총칙", "## 제4장 근로시간과 휴식", "제6장의2 …".
@@ -521,6 +545,14 @@ def _match_chapter_number(line: str) -> int | None:
     s = line.strip().translate(_KANGXI_NUMERAL_TRANS)
     if len(s) > 80:
         return None
+    # Plain numbered chapter headings used by many technical books,
+    # e.g. "1  Introduction" or "12  Advanced Topics".
+    #
+    # Require at least two spaces after the chapter number. This avoids
+    # treating ordinary numbered list items such as "1. Item" as chapters.
+    plain = re.match(r"^([1-9]\d{0,2})\s{2,}\S", s)
+    if plain:
+        return int(plain.group(1))
     m = _EXPLICIT_CHAPTER.match(s)
     if m and _HEADING_TAIL.match(m.group("rest")):
         if m.group(1):
@@ -535,6 +567,12 @@ def _match_chapter_number(line: str) -> int | None:
     tm = _TH_CHAPTER.match(s)
     if tm:
         return int(tm.group(1).translate(_TH_DIGIT_MAP))
+    hm = _HI_CHAPTER.match(s)
+    if hm:
+        return int(hm.group(1).translate(_HI_DIGIT_MAP))
+    bm = _BN_CHAPTER.match(s)
+    if bm:
+        return int(bm.group(1).translate(_BN_DIGIT_MAP))
     km = _KO_CHAPTER.match(s)
     if km:
         return int(km.group(1))
@@ -550,7 +588,9 @@ def _chapter_number(line: str) -> int | None:
     Handles Arabic ("Chapter 5", "Capítulo 5: ..."), Roman-numeral
     ("I: Loomings", "## i. introduction", "II. The Carpet-Bag"),
     Chinese ("第三章 …", "## 一 · …", "## 第一讲"), Thai ("บทที่ 3",
-    "## บทที่ ๑"), Korean ("제1장 총칙", "## 제4장 근로시간과 휴식"), and
+    "## บทที่ ๑"), Hindi ("अध्याय 1", "अध्याय १", "## अध्याय 2"),
+    Bengali ("অধ্যায় 1", "অধ্যায় ১", "## অধ্যায় 2"),
+    Korean ("제1장 총칙", "## 제4장 근로시간과 휴식"), and
     Persian ("فصل ۱", "فصل اول", "فصل بیست و یکم", "بخش ۲: مفاهیم",
     "## فصل ۱: مقدمه", PDF-glued "فصل سی و چهارمخداحافظ…") heading styles — each
     optionally preceded by a Markdown/AsciiDoc heading marker

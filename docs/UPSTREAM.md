@@ -32,6 +32,57 @@ Baseline 代表「已審查」，不代表「全部已合併」。
 README 衝突的解法：上游新內容併進 `README.en.md`，再把對應段落翻進 `README.md`。
 第三語系檔（例如 `README.ru.md`）略過，不要合進本 fork。
 
+## 2026-08-29：master 增量 15 筆逐筆審完，引用 5 筆
+
+`upstream-check` 自 2026-08-24 起紅燈（本 repo 用 `--strict` 讓 workflow 失敗當訊號，不開 issue）。
+相對 `3a97a71` 上游 ahead 15 筆。
+
+### 已涵蓋：8 筆是本 fork 先前 cherry-pick 的 PR 在上游落地
+
+不是「跳過」，是**先前已引用**。逐一比對檔案內容確認，不採信 commit 標題：
+
+| 上游 commit | 對應 PR | 本 fork 的證據 |
+| --- | --- | --- |
+| `e1184b4` | #181 UTF-8 BOM | `tools/validate_skill.py:132` 用 `encoding="utf-8-sig"` |
+| `1ee3301` | #180 只有標點的 setext 標題 | `book_to_skill/utils.py` setext 分支已有「只有標點不算章節」的守衛 |
+| `9aecefe` | #182 deprecated／annotation 格式控制字元 | `sanitize.py` 第 5 節，含 `0x206A`、`0xFFF9-0xFFFB` |
+| `ae9a3bc` | #178 Cf 過濾器漏掉的隱形載體 | `sanitize.py` 第 3、6 節 |
+| `8a2cae6` | #175 康熙部首數字 | `utils.py` 的 `_KANGXI_NUMERAL_TRANS` |
+| `7bcfcd5` | #184 per-run workdir | 只引用「精確清理」半部，per-run 目錄半部維持不引用（2026-08-23 補二的判斷不變） |
+| `da6aad0` | #126 + #161 | #126 已於 2026-08-23 引用；#161 見下方「維持不引用」 |
+| `ffc56e7` | #117 + #192 | `parsers/pdf.py:82` 已有 `-enc UTF-8`，第 84／105 行已有 `encoding="utf-8", errors="replace"` |
+
+### 本輪新引用 5 筆
+
+全部是小、自足、各自帶測試的抽取器／解析器修正，沒有一筆動到 `SKILL.md` 規格或抽取器主流程的形狀：
+
+| 上游 commit | PR | 內容 |
+| --- | --- | --- |
+| `fc9b1c4` | #186 | Hindi（天城文）章節標題 `अध्याय N`，含天城文數字重映射 |
+| `ae28e78` | #194 | Vietnamese 章節標題 `Chương N` |
+| `08b80f4` | #195 | Bengali 章節標題 `অধ্যায় N`，含孟加拉數字重映射 |
+| `a2a05f1` | #196 | 純數字章節標題（`1  Introduction`）；要求數字後至少兩個空白，避免把 `1. Item` 這種編號清單當章節 |
+| `be452a9` | #197 | PDF 頁數改用 pdfminer 當最後後備（`pdftotext`／`pypdf` 都不在時） |
+
+`08b80f4` 與 `a2a05f1` 的 `utils.py` 半部無法直接 apply——衝突全部是上游同批 commit 之間的空行與 docstring
+重排，不是語意差異；實質的那幾行手動套上，逐行核對過。三支語言 pattern 都放在既有 Thai／Korean／Farsi
+同一段，dispatch 順序照上游。
+
+### 維持不引用
+
+| 項目 | 理由 |
+| --- | --- |
+| `560dca6`（#185 AGENTS.md 執行契約 + evals ledger）、`9c207f8`（#189／#190／#191 offline trajectory replay 與 eval 工具） | 延續 2026-08-23 對 #176 的判斷：**本 fork 不跑那套 eval**。而且本 fork 的 `AGENTS.md` 已與上游分岔（Codex 宿主約定），整支覆蓋只會讓每次同步都在同一批檔案衝突。 |
+| `da6aad0` 的 #161 半部（Unit 式章節、羅馬數字抑制） | 2026-08-23 訂的條件是「**若出現抓不到的實例**再按本 fork 的實作補規則」。本輪沒有出現這樣的實例，條件未觸發，判斷不變。本輪引用的 #196 已經覆蓋最常見的純數字形式。 |
+| open PR #198（CI 的 SHA pin 加版本註解、pin codeql-action） | 上游 CI 衛生；本 fork 有自己的 workflow 集合，不共用那些檔案。 |
+| open PR #125／#129／#157／#166／#170 | 判斷與 2026-08-22／08-23 相同，且都沒有新 commit，不重讀 diff。 |
+
+### 水位
+
+- commit：`9c207f87`（upstream/master tip，2026-08-28）
+- PR：**#198**（含 open）；issue：**#192**
+- 三者都記在 `tools/upstream_baseline.json`
+
 ## 2026-08-22：fork 起點
 
 本 fork 自上游 `master` `3a97a7115ab3c82edf47f315b544fbcefdd8559c`

@@ -627,6 +627,47 @@ class TestDetectStructure:
         assert _chapter_number("บทความนี้ยาวมากและมีรายละเอียดเยอะ") is None
         assert _chapter_number("ตอนนี้เรามาดูกันว่าเกิดอะไรขึ้น") is None
 
+    # ── Hindi (Devanagari) chapter headings ────────────────────────────────
+    def test_detects_hindi_chapters(self):
+        """Hindi headings: `अध्याय N`, with Devanagari or Arabic digits."""
+        text = (
+            "अध्याय १ प्रस्तावना\nसामग्री\n"
+            "अध्याय २ विधियाँ\nसामग्री\n"
+            "अध्याय 3 परिणाम\nसामग्री"
+        )
+        assert detect_structure(text)["chapters_detected"] == 3
+
+    def test_hindi_markdown_prefix(self):
+        text = "## अध्याय १ पहला\nसामग्री\n## अध्याय २ दूसरा\nसामग्री"
+        assert detect_structure(text)["chapters_detected"] == 2
+
+    def test_hindi_prose_is_not_a_chapter_heading(self):
+        """`अध्याय` used in prose (no number, or not at the start) is not a heading."""
+        from book_to_skill.utils import _chapter_number
+
+        assert _chapter_number("इस अध्याय में हम चर्चा करेंगे") is None
+        assert _chapter_number("अध्याय") is None
+
+    def test_detects_bengali_chapters(self):
+        """Bengali headings: `অধ্যায় N`, with Bengali or Arabic digits."""
+        text = (
+            "অধ্যায় ১ ভূমিকা\nবিষয়বস্তু\n"
+            "অধ্যায় ২ পদ্ধতি\nবিষয়বস্তু\n"
+            "অধ্যায় 3 ফলাফল\nবিষয়বস্তু"
+        )
+        assert detect_structure(text)["chapters_detected"] == 3
+
+    def test_bengali_markdown_prefix(self):
+        text = "## অধ্যায় ১ প্রথম\nবিষয়বস্তু\n## অধ্যায় ২ দ্বিতীয়\nবিষয়বস্তু"
+        assert detect_structure(text)["chapters_detected"] == 2
+
+    def test_bengali_prose_is_not_a_chapter_heading(self):
+        """`অধ্যায়` used in prose (no number, or not at the start) is not a heading."""
+        from book_to_skill.utils import _chapter_number
+
+        assert _chapter_number("এই অধ্যায়ে আমরা আলোচনা করব") is None
+        assert _chapter_number("অধ্যায়") is None
+
     # ── Korean chapter headings ────────────────────────────────────────────
 
     def test_korean_je_n_jang(self):
@@ -898,6 +939,24 @@ class TestDetectStructure:
         text = "Capítulo 1\nalgum texto\nCapítulo 2\nmais texto\n"
         assert detect_structure(text)["chapters_detected"] == 2
 
+    def test_detects_plain_numbered_chapter_headings(self):
+        """Plain numbered headings such as '1  Introduction' are chapters."""
+        text = (
+            "1  Introdução e Visão Geral\n"
+            "Texto do capítulo.\n"
+            "2  Princípios Fundamentais\n"
+            "Texto do capítulo.\n"
+            "3  Produtos de Trabalho\n"
+            "Texto do capítulo.\n"
+            "4  Práticas para Elaboração\n"
+            "Texto do capítulo.\n"
+        )
+
+        result = detect_structure(text)
+
+        assert result["chapters_detected"] == 4
+        assert result["chapters_method"] == "numeric"
+
     def test_distinct_numbering_dedups_toc_and_body(self):
         # A ToC heading and the body heading for the same chapter count once.
         text = "Capítulo 1: Alicerces\n...\nCapítulo 1\nbody of chapter one\n"
@@ -1048,6 +1107,16 @@ class TestDetectStructure:
 
     def test_dutch_hoofdstuk(self):
         assert detect_structure("Hoofdstuk 1\nx\nHoofdstuk 2\nx")["chapters_detected"] == 2
+
+    def test_vietnamese_chuong(self):
+        assert detect_structure("Chương 1\nx\nChương 2\nx")["chapters_detected"] == 2
+
+    def test_vietnamese_chuong_not_program(self):
+        # "Chương trình" (program) starts with the chapter word but is not a
+        # heading — no number follows "Chương", so it must not match.
+        from book_to_skill.utils import _chapter_number
+
+        assert _chapter_number("Chương trình 1 của khóa học") is None
 
     def test_german_kapitel_with_title(self):
         text = "Kapitel 1: Einführung\nx\nKapitel 2: Methoden\nx"
@@ -1801,6 +1870,31 @@ class TestPdftotextEncoding:
         cmd = captured.get("cmd") or []
         enc_idx = cmd.index("-enc")
         assert cmd[enc_idx + 1] == "UTF-8"
+
+
+class TestPdfPageCount:
+    """Tests for PDF page-count fallback behavior."""
+
+    def test_count_pages_uses_pdfminer_when_pdfinfo_and_pypdf_are_unavailable(
+        self, monkeypatch
+    ):
+        """Use pdfminer as the final fallback when other page counters are unavailable."""
+        fake_pdf = "fake.pdf"
+
+        monkeypatch.setattr(pdf_parser.shutil, "which", lambda _: None)
+
+        high_level = mock.MagicMock()
+        high_level.extract_text.return_value = (
+            "page onepage twopage three"
+        )
+
+        pdfminer = mock.MagicMock()
+        pdfminer.high_level = high_level
+
+        monkeypatch.setitem(sys.modules, "pdfminer", pdfminer)
+        monkeypatch.setitem(sys.modules, "pdfminer.high_level", high_level)
+
+        assert pdf_parser.count_pages(fake_pdf) == 3
 
 
 class TestLooksImageOnly:
