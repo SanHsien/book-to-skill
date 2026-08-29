@@ -1,9 +1,9 @@
 {
   "repo": "https://github.com/virgiliojr94/book-to-skill.git",
   "branch": "master",
-  "reviewed_through": "3a97a7115ab3c82edf47f315b544fbcefdd8559c",
-  "reviewed_date": "2026-08-23",
-  "notes": "SanHsien fork baseline at clone time. HEAD is upstream master commit Update README.md (#179). 2026-08-22 另盤點上游 PR／issue／分支：引用 #117、#181、#175、#178、#182 五筆（cherry-pick，保留原作者），其餘評估後不引用，理由記在 docs/UPSTREAM.md。 2026-08-23：master 增量 0、PR/issue 水位未動；分支表原本用「等」蓋掉四條 behind 很小的分支（eval/v0-preregistration、virgiliojr94-patch-1、docs/shorten-readme-mascots、gh-pages），已逐條補在 docs/UPSTREAM.md 並訂下「behind 個位數的分支必須單獨列」的判準。 2026-08-23（補二）：上一輪 PR 盤點只查 open，漏了 #183（本 fork 端誤開到上游後關閉）與 #184（第三方 open PR）。#184 引用「精確清理」半部（metadata.json 記 workdir、SKILL.md Step 10 改讀回該 run 的 workdir），不引用 per-run 目錄半部。判準補上：PR/issue 一律 --state all。",
-  "reviewed_pr_through": 184,
-  "reviewed_issue_through": 174
+  "reviewed_through": "9c207f870adebe20ade4f7d2f11bc3d759c2fd88",
+  "reviewed_date": "2026-08-29",
+  "notes": "SanHsien fork baseline at clone time. HEAD is upstream master commit Update README.md (#179). 2026-08-22 另盤點上游 PR／issue／分支：引用 #117、#181、#175、#178、#182 五筆（cherry-pick，保留原作者），其餘評估後不引用，理由記在 docs/UPSTREAM.md。 2026-08-23：master 增量 0、PR/issue 水位未動；分支表原本用「等」蓋掉四條 behind 很小的分支（eval/v0-preregistration、virgiliojr94-patch-1、docs/shorten-readme-mascots、gh-pages），已逐條補在 docs/UPSTREAM.md 並訂下「behind 個位數的分支必須單獨列」的判準。 2026-08-23（補二）：上一輪 PR 盤點只查 open，漏了 #183（本 fork 端誤開到上游後關閉）與 #184（第三方 open PR）。#184 引用「精確清理」半部（metadata.json 記 workdir、SKILL.md Step 10 改讀回該 run 的 workdir），不引用 per-run 目錄半部。判準補上：PR/issue 一律 --state all。 2026-08-29：master 增量 15 筆逐筆審完，水位推到 9c207f8。其中 8 筆是本 fork 先前 cherry-pick 的 PR 在上游落地（#181／#180／#182／#178／#175／#184 半／#126 半／#117＋#192），逐一比對過 檔案內容確認已涵蓋。本輪新引用 5 筆：Hindi(#186)、Vietnamese(#194)、Bengali(#195) 章節標題、 純數字章節標題(#196)、PDF 頁數的 pdfminer 後備(#197)。不引用：#185／#189-191 的 eval 工具與 ledger（延續 2026-08-23 對 #176 的判斷，本 fork 不跑那套 eval），以及 #161 整支（維持 2026-08-23 的判斷，觸發條件仍未出現）。PR 水位含 open 的 #198（上游 CI SHA pin 註解， 本 fork 自有 workflow，不引用）。",
+  "reviewed_pr_through": 198,
+  "reviewed_issue_through": 192
 }
