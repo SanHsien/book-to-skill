@@ -112,12 +112,16 @@ function Invoke-SkillSpectorSelfScan {
     # which is the previous behaviour rather than a silent weakening.
     $previousStaticBudget = $env:SKILLSPECTOR_MAX_STATIC_SECONDS
     $previousWorkflowBudget = $env:SKILLSPECTOR_MAX_WORKFLOW_SECONDS
+    $previousPythonHashSeed = $env:PYTHONHASHSEED
     $env:SKILLSPECTOR_MAX_STATIC_SECONDS = "0"
     # The whole repository is scanned as one bundle, so the 60-second graph-wide
     # budget is the binding one: it expires part-way through and every remaining
     # file is recorded as runtime_limit with no findings, which reads as a clean
     # scan. Lift both or the gate reports "no findings" for files it never opened.
     $env:SKILLSPECTOR_MAX_WORKFLOW_SECONDS = "0"
+    # Fix interpreter hash order as a second stability guard. The wrapper below
+    # also serializes analyzer branches, which prevents nondeterministic merges.
+    $env:PYTHONHASHSEED = "0"
     try {
         Write-Host "==> SkillSpector self-scan (git-tracked files, staged copy)"
         $files = git -C $RepoRoot ls-files --cached --others --exclude-standard |
@@ -135,9 +139,8 @@ function Invoke-SkillSpectorSelfScan {
             Copy-Item -LiteralPath $source -Destination $destination -Force
         }
 
-        $skillSpectorBootstrap = "from skillspector.cli import app; app()"
-        & $script:skillSpectorPythonExe -c $skillSpectorBootstrap scan $stageDir `
-            --no-llm --format json --output $reportPath --baseline $baselinePath
+        & $script:skillSpectorPythonExe tools\run_skillspector.py $stageDir `
+            --output $reportPath --baseline $baselinePath
         if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne 1) {
             throw "skillspector scan crashed (exit code $LASTEXITCODE); see $reportPath"
         }
@@ -157,6 +160,7 @@ function Invoke-SkillSpectorSelfScan {
         Remove-Item -Recurse -Force -LiteralPath $stageDir -ErrorAction SilentlyContinue
         $env:SKILLSPECTOR_MAX_STATIC_SECONDS = $previousStaticBudget
         $env:SKILLSPECTOR_MAX_WORKFLOW_SECONDS = $previousWorkflowBudget
+        $env:PYTHONHASHSEED = $previousPythonHashSeed
     }
 }
 

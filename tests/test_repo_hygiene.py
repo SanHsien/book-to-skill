@@ -4,6 +4,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
+import yaml
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -75,6 +76,22 @@ def test_gitignore_covers_ebooks_and_extractor_output():
         assert checked.returncode == 0, f"{rel} should be gitignored"
 
 
+def test_git_checkout_normalizes_text_to_lf():
+    """Content-bound scanner baselines must be stable on Windows runners."""
+    attributes = (REPO_ROOT / ".gitattributes").read_text(encoding="utf-8")
+    rules = {
+        line.strip()
+        for line in attributes.splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    }
+    assert "* text=auto eol=lf" in rules
+
+    checked = _git("check-attr", "text", "eol", "--", "tests/test_repo_hygiene.py")
+    assert checked.returncode == 0, checked.stderr
+    assert "tests/test_repo_hygiene.py: text: auto" in checked.stdout
+    assert "tests/test_repo_hygiene.py: eol: lf" in checked.stdout
+
+
 def test_docx_zipfile_parser_does_not_use_stdlib_etree():
     """R-05: zipfile DOCX path must parse with defusedxml, not xml.etree."""
     source = (REPO_ROOT / "book_to_skill" / "parsers" / "docx.py").read_text(
@@ -112,6 +129,41 @@ def test_fresh_clone_gate_uses_the_pinned_security_scanner():
     for relative_path in ("AGENTS.md", "docs/DEVELOPMENT.md"):
         text = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
         assert "requirements-security.txt" in text, relative_path
+
+
+def test_security_scanner_uses_a_deterministic_python_hash_seed():
+    dev_check = (REPO_ROOT / "tools" / "dev_check.ps1").read_text(encoding="utf-8")
+    assert '$previousPythonHashSeed = $env:PYTHONHASHSEED' in dev_check
+    assert '$env:PYTHONHASHSEED = "0"' in dev_check
+    assert '$env:PYTHONHASHSEED = $previousPythonHashSeed' in dev_check
+
+
+def test_unstable_scanner_findings_use_narrow_suppression_rules():
+    baseline = yaml.safe_load(
+        (REPO_ROOT / ".skillspector-baseline.yaml").read_text(encoding="utf-8")
+    )
+    expected = {
+        ("PE3", ".gitignore", "*.env*"),
+        ("PE3", "tests/test_scan_coverage.py", "*.env*"),
+        ("PE3", "tests/test_scan_generated_skill.py", "*.env*"),
+        ("PE2", "book_to_skill/dependencies.py", "*sudo*"),
+        ("PE2", "README.md", "*sudo*"),
+        ("PE2", "README.en.md", "*sudo*"),
+        ("RP1", "CONTRIBUTING.md", None),
+        ("RP1", "README.en.md", None),
+        ("RP1", "README.md", None),
+        ("RP1", "SECURITY-NOTICE.md", None),
+        ("RP1", "docs/index.md", None),
+        ("RP1", "docs/install.md", None),
+        ("RP1", "docs/usage.md", None),
+        ("AST4", "tests/test_repo_hygiene.py", "*subprocess*"),
+    }
+    actual = {
+        (rule.get("id"), rule.get("path"), rule.get("message"))
+        for rule in baseline["rules"]
+    }
+    assert actual == expected
+    assert all(rule.get("reason", "").strip() for rule in baseline["rules"])
 
 
 def test_publish_instructions_pin_the_npx_skills_cli():
