@@ -49,3 +49,6 @@ docs/BACKERS.md
 
 # Social-card render cache (mkdocs-material[imaging]).
 .cache/
+
+# SkillSpector self-scan reports (generated locally by tools/dev_check.ps1)
+.skillspector-reports/
