@@ -19,19 +19,19 @@ book-to-skill = "book_to_skill.cli:main"
 [project.optional-dependencies]
 html = ["trafilatura"]
 epub = ["ebooklib", "beautifulsoup4"]
-pdf = ["pypdf", "pdfminer.six"]
-docx = ["python-docx"]
+pdf = ["pypdf==6.17.0", "pdfminer.six==20260107; python_version >= '3.10'"]
+docx = ["python-docx==1.2.0"]
 rtf = ["striprtf"]
-technical = ["docling"]
+technical = ["docling==2.126.0; python_version >= '3.10'"]
 all = [
     "trafilatura",
     "ebooklib",
     "beautifulsoup4",
-    "pypdf",
-    "pdfminer.six",
-    "python-docx",
+    "pypdf==6.17.0",
+    "pdfminer.six==20260107; python_version >= '3.10'",
+    "python-docx==1.2.0",
     "striprtf",
-    "docling"
+    "docling==2.126.0; python_version >= '3.10'"
 ]
 
 

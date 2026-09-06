@@ -61,6 +61,7 @@ Baseline 代表「已審查」，不代表「全部已合併」。
 python -m venv .venv
 .venv\Scripts\python -m pip install --upgrade pip
 .venv\Scripts\python -m pip install pytest ruff defusedxml
+.venv\Scripts\python -m pip install -r requirements-security.txt
 pwsh -NoProfile -File tools\dev_check.ps1
 .venv\Scripts\python scripts\extract.py --check
 ```

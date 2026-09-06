@@ -58,7 +58,7 @@ def test_no_compiled_bytecode_is_tracked():
     assert offenders == [], (
         "compiled bytecode is tracked in git: "
         + ", ".join(offenders)
-        + " — remove with `git rm --cached <path>`"
+        + " — untrack the path from git's index"
     )
 
 
@@ -82,4 +82,40 @@ def test_docx_zipfile_parser_does_not_use_stdlib_etree():
     )
     assert "xml.etree" not in source
     assert "defusedxml.ElementTree" in source
+
+
+def test_optional_document_parsers_have_security_version_floors():
+    """Untrusted documents resolve to reviewed versions, with honest Python markers."""
+    pyproject = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    for requirement in (
+        '"pypdf==6.17.0"',
+        '"pdfminer.six==20260107; python_version >= \'3.10\'"',
+        '"python-docx==1.2.0"',
+        '"docling==2.126.0; python_version >= \'3.10\'"',
+    ):
+        assert requirement in pyproject
+
+
+def test_fresh_clone_gate_uses_the_pinned_security_scanner():
+    requirement = (
+        "skillspector @ git+https://github.com/SanHsien/SkillSpector.git@"
+        "70cd26389a18f12b933304b7dd17069a2a1c7c8c"
+    )
+    assert requirement in (REPO_ROOT / "requirements-security.txt").read_text(
+        encoding="utf-8"
+    )
+
+    dev_check = (REPO_ROOT / "tools" / "dev_check.ps1").read_text(encoding="utf-8")
+    assert "Get-Command skillspector" not in dev_check
+    assert "SkillSpectorPython" in dev_check
+
+    for relative_path in ("AGENTS.md", "docs/DEVELOPMENT.md"):
+        text = (REPO_ROOT / relative_path).read_text(encoding="utf-8")
+        assert "requirements-security.txt" in text, relative_path
+
+
+def test_publish_instructions_pin_the_npx_skills_cli():
+    skill = (REPO_ROOT / "SKILL.md").read_text(encoding="utf-8")
+    assert "npx skills@1.5.23 add" in skill
+    assert "npx " + "skills add" not in skill
 

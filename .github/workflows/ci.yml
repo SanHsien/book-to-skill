@@ -43,8 +43,10 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
-      - name: Install pytest, ruff, and defusedxml
-        run: python -m pip install pytest ruff defusedxml
+      - name: Install test dependencies and pinned SkillSpector
+        run: |
+          python -m pip install pytest ruff defusedxml
+          python -m pip install -r requirements-security.txt
       - name: Canonical Windows development gate
         shell: pwsh
         run: pwsh -NoProfile -File tools/dev_check.ps1

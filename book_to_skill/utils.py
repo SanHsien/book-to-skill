@@ -224,7 +224,7 @@ _KO_CHAPTER = re.compile(
 # Arabic-Indic (U+0660–U+0669); int() parses all three. Word numerals use a
 # small ordinal map (1–34) with longest-prefix matching so compounds
 # ("بیست و یکم") and teens ("یازدهم") stay maintainable. Markdown "#" prefixes
-# are handled by `_chapter_number`'s second pass (Issue #91).
+# are handled by the second pass in `_chapter_number` (Issue #91).
 #
 # Trailing rules (Persian has no letter case for a Latin-style `_HEADING_TAIL`):
 #   - digits: EOL / punctuation / spaced title (Korean-style);
@@ -898,7 +898,7 @@ def extract_single_file(input_path: Path, extraction_mode: str, install_mode: st
                         raise ExtractionError(
                             "Could not extract text from PDF.\n"
                             "Install one of: poppler-utils (pdftotext), pypdf, or pdfminer.six\n"
-                            "  sudo apt install poppler-utils\n"
+                            "  apt install poppler-utils (with appropriate privileges)\n"
                             "  pip3 install pypdf\n"
                             "  pip3 install pdfminer.six"
                         )
@@ -1011,6 +1011,65 @@ def prepare_output_dir(path: Path) -> None:
 _WORKDIR_LOCK_NAME = ".extract.lock"
 
 
+def _windows_pid_is_alive(
+    pid: int, *, kernel32=None, get_last_error=None
+) -> bool | None:
+    """Query a Windows process without signaling or terminating it."""
+    import ctypes
+    from ctypes import wintypes
+
+    process_query_limited_information = 0x1000
+    error_access_denied = 5
+    error_invalid_parameter = 87
+    still_active = 259
+
+    if kernel32 is None:
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+    if get_last_error is None:
+        get_last_error = ctypes.get_last_error
+    open_process = kernel32.OpenProcess
+    open_process.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+    open_process.restype = wintypes.HANDLE
+    get_exit_code = kernel32.GetExitCodeProcess
+    get_exit_code.argtypes = (wintypes.HANDLE, ctypes.POINTER(wintypes.DWORD))
+    get_exit_code.restype = wintypes.BOOL
+    close_handle = kernel32.CloseHandle
+    close_handle.argtypes = (wintypes.HANDLE,)
+    close_handle.restype = wintypes.BOOL
+
+    handle = open_process(process_query_limited_information, False, pid)
+    if not handle:
+        error = get_last_error()
+        if error == error_access_denied:
+            return True
+        if error == error_invalid_parameter:
+            return False
+        return None
+
+    try:
+        exit_code = wintypes.DWORD()
+        if not get_exit_code(handle, ctypes.byref(exit_code)):
+            return None
+        return exit_code.value == still_active
+    finally:
+        close_handle(handle)
+
+
+def _pid_is_alive(pid: int) -> bool | None:
+    """Return process liveness, or None when the platform cannot decide."""
+    if os.name == "nt":
+        return _windows_pid_is_alive(pid)
+    try:
+        os.kill(pid, 0)          # POSIX signal 0 is a non-destructive liveness probe
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except (OSError, AttributeError):
+        return None
+    return True
+
+
 def _lock_holder_pid(lock: Path):
     """PID currently holding the workdir, or None if free, stale, or unreadable."""
     try:
@@ -1019,15 +1078,8 @@ def _lock_holder_pid(lock: Path):
         return None
     if pid == os.getpid():
         return None
-    try:
-        os.kill(pid, 0)          # signal 0 = liveness probe, nothing is delivered
-    except ProcessLookupError:
-        return None              # the process is gone, so the lock is stale
-    except PermissionError:
-        return pid               # it exists, we simply may not signal it
-    except (OSError, AttributeError):
-        return None              # unknown, or a platform without os.kill
-    return pid
+    alive = _pid_is_alive(pid)
+    return None if alive is False else pid
 
 
 def claim_workdir(workdir: Path = None) -> Path:
@@ -1079,8 +1131,8 @@ def print_intro() -> None:
     """Two lines of attribution at the start of every run.
 
     Printed here rather than only in SKILL.md so it shows however the agent
-    invokes extraction. States who maintains the project without asking for
-    anything — the ask belongs at the end, after the work is delivered.
+    invokes extraction. States who maintains the project and does not request
+    support — that request belongs at the end, after the work is delivered.
     """
     sys.stderr.write(
         "book-to-skill · turns a document into a structured agent skill\n"

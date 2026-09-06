@@ -3,21 +3,20 @@ name: book-to-skill
 description: "Converts books and documents (PDF, EPUB, DOCX, HTML, Markdown, plain text, RTF, MOBI/AZW with Calibre) into structured agent skills, extracting frameworks, mental models, principles, techniques, and anti-patterns. Use when the user wants to study a document through GitHub Copilot CLI, Amp, or Claude Code, apply an author's frameworks while working, or build a reusable knowledge base from a file."
 ---
 
-<!--
-Cross-agent notes (informational; ignored by host agents):
-  - Compatible skill roots: GitHub Copilot CLI (~/.copilot/skills, ~/.agents/skills,
-    .github/skills, .claude/skills, .agents/skills), Amp (.agents/skills,
-    ~/.config/agents/skills, ~/.config/amp/skills), Claude Code (~/.claude/skills).
-  - `allowed-tools` is intentionally omitted to stay agent-neutral: Copilot CLI uses
-    `shell`/MCP-server names, Claude uses `Bash`/`Read`/`Write`/`Glob`/`Grep`, Amp
-    adds `shell_command`. The skill needs shell (to run extract.py) and file
-    read/write — each host will prompt for those on first use.
-  - Argument hint: <path-to-document-folder-or-glob>... [skill-name-slug]
--->
-
 # Book-to-Skill Converter
 
 Transform written knowledge into actionable agent skills by extracting structure — not producing summaries.
+
+## Host compatibility
+
+- Compatible skill roots: GitHub Copilot CLI (`~/.copilot/skills`, `~/.agents/skills`,
+  `.github/skills`, `.claude/skills`, `.agents/skills`), Amp (`.agents/skills`,
+  `~/.config/agents/skills`, `~/.config/amp/skills`), Claude Code (`~/.claude/skills`).
+- `allowed-tools` is intentionally omitted to stay agent-neutral: Copilot CLI uses
+  `shell`/MCP-server names, Claude uses `Bash`/`Read`/`Write`/`Glob`/`Grep`, and Amp
+  adds `shell_command`. The skill needs shell to run `extract.py` plus file read/write;
+  each host requests approval when those tools are invoked.
+- Argument pattern: `<path-to-document-folder-or-glob>... [skill-name-slug]`.
 
 ## Philosophy
 
@@ -88,7 +87,7 @@ Throughout the workflow:
 - Identify the input paths and the optional skill slug.
 - If the last argument is not a file, folder, or glob that exists or matches any files, and it looks like a skill slug (e.g. lowercase hyphens, alphanumeric), treat it as `SKILL_NAME`.
 - Treat all other arguments as the list of `INPUT_PATHS`.
-- If any input path is an existing skill directory (contains `SKILL.md` and a `chapters/` sub-folder), or if `SKILL_NAME` matches an existing skill slug in `SKILLS_HOME`, flag this run as an **Update/Fold-in** operation (Mode 4).
+- If an input path is an existing skill directory with a root manifest and a `chapters/` sub-folder, or if the optional slug matches an existing directory under the selected skills root, flag this run as an **Update/Fold-in** operation (Mode 4).
 
 ---
 
@@ -161,7 +160,7 @@ fi
 
 Before extraction, the script checks optional Python packages needed for the detected format. If a better extractor is missing, it prompts the user with the available fallback. Non-interactive sessions default to fallback unless install mode is explicitly `yes`.
 
-**Tip — preflight the environment:** run `"$PYTHON_BIN" "$SCRIPT_PATH" --check` to print a per-format report of which extractors are installed and the exact command to install whatever is missing, without processing any file. Useful when a user reports a setup or quality problem.
+**Tip — preflight the environment:** run <code>"$PYTHON_BIN" "$SCRIPT_PATH" --check</code> to print a per-format report of which extractors are installed and the exact command to install whatever is missing, without processing any file. Useful when a user reports a setup or quality problem.
 
 This creates work files whose **exact paths are printed** by the extractor (`Text ->` and `Meta ->`). Do not assume `/tmp/book_skill_work`.
 
@@ -314,12 +313,12 @@ Choose the destination skill root (`SKILLS_HOME`). Probe the user's filesystem f
 | **OpenAI Codex** | `~/.agents/skills` (discovered natively; follows symlinks) | `.agents/skills` |
 
 Selection rules:
-1. If **exactly one** of the host's candidate roots exists on disk, use it without asking.
+1. If **exactly one** of the host's candidate roots exists on disk, reuse that existing root directly.
 2. If **none** exist (fresh machine), ask the user which root to create — present the host-appropriate options and remember the choice for the session. Do not silently pick.
 3. If the user explicitly asked for project-local output, prefer the project-local row.
 4. If you cannot identify the host, ask: "Which agent are you running this in — GitHub Copilot CLI, Amp, Codex, or Claude Code?"
 
-Set `SKILLS_HOME` to the selected root and check if `$SKILLS_HOME/<skill_name>/` already exists.
+Set `SKILLS_HOME` to the selected root and check whether the selected skill directory already exists.
 If it does, prompt the user to choose:
 1. **Update / Fold-in** (Mode 4) — integrate new files/content into the existing skill components.
 2. **Overwrite** — delete and regenerate the skill from scratch.
@@ -363,7 +362,7 @@ For EACH chapter/major section identified in Step 3:
 
 Read the corresponding section of the extracted `full_text.txt` (use character offsets or grep for chapter headings).
 
-Create `$SKILLS_HOME/<skill_name>/chapters/ch<NN>-<slug>.md` using the structure below.
+Create `ch<NN>-<slug>.md` in the selected skill directory's `chapters/` folder using the structure below.
 
 **Adapt emphasis based on `BOOK_TYPE`:**
 - `technical` → prioritize "Code Examples", "Reference Tables", and "Commands & APIs" sections; preserve exact syntax
@@ -391,21 +390,19 @@ Create `$SKILLS_HOME/<skill_name>/chapters/ch<NN>-<slug>.md` using the structure
 - **<What to avoid>**: <why it fails>
 
 ## Code Examples *(technical books only — omit if BOOK_TYPE=text)*
-<!-- Copy the most instructive snippet from the chapter. Preserve indentation exactly. -->
 ```<language>
 <key code example from this chapter>
 ```
 - **What it demonstrates**: <one line>
 
 ## Reference Tables *(technical books only — omit if BOOK_TYPE=text)*
-<!-- Reproduce any comparison matrix, parameter table, or decision table from the chapter in markdown. -->
+Reproduce any comparison matrix, parameter table, or decision table from the chapter in Markdown.
 
 ## Worked Example *(DEPTH=study only — omit for DEPTH=reference)*
-<!-- Reproduce or reconstruct one concrete example the author works through: a
-     sample document, a dialogue, a filled-in template, a before/after, or a
-     decision walked end-to-end. This is what makes a study chapter worth its
-     budget. Keep it faithful to the source; never copy long raw passages —
-     reconstruct the example compactly. -->
+Reproduce or reconstruct one concrete example the author works through: a sample
+document, dialogue, filled-in template, before/after, or decision walked end-to-end.
+Keep it faithful to the source; never copy long raw passages; reconstruct the
+example compactly.
 
 ## Key Takeaways
 1. <Actionable insight>
@@ -423,19 +420,19 @@ Create `$SKILLS_HOME/<skill_name>/chapters/ch<NN>-<slug>.md` using the structure
 ## Step 8 — Generate supporting files
 
 ### glossary.md
-Create `$SKILLS_HOME/<skill_name>/glossary.md`:
+Create <code>$SKILLS_HOME/&lt;skill_name&gt;/glossary.md</code>:
 - Every significant term from the book, alphabetically sorted
 - Format: `**Term** — definition (Ch N)`
 - Max 1,500 tokens
 
 ### patterns.md
-Create `$SKILLS_HOME/<skill_name>/patterns.md`:
+Create <code>$SKILLS_HOME/&lt;skill_name&gt;/patterns.md</code>:
 - All concrete techniques, design patterns, algorithms from the book
 - Format: `## Pattern Name\n**When to use**: ...\n**How**: ...\n**Trade-offs**: ...`
 - Max 2,000 tokens
 
 ### cheatsheet.md
-Create `$SKILLS_HOME/<skill_name>/cheatsheet.md`:
+Create <code>$SKILLS_HOME/&lt;skill_name&gt;/cheatsheet.md</code>:
 
 **This is the most differentiated layer of the skill — treat it as a reasoning aid, not a keyword list.** Anyone can grep the glossary for a term. The cheatsheet captures the author's *judgment*: the decisions they'd make and why. It's the file that turns "I know the words" into "I'd act the way the author would".
 
@@ -458,15 +455,13 @@ Avoid: bare term→definition rows (that's the glossary), and prose paragraphs (
 **CRITICAL TOKEN BUDGET: Keep SKILL.md body under 4,000 tokens.**
 Compaction truncates from the END — put the most important content FIRST.
 
-Create `$SKILLS_HOME/<skill_name>/SKILL.md`:
+Create <code>$SKILLS_HOME/&lt;skill_name&gt;/SKILL.md</code>:
 
 ```markdown
 ---
 name: <skill_name>
 description: "Knowledge base from \"<Full Title>\" by <Author(s)>. Use when applying <author>'s frameworks for <key topics, 3–6 terms>, studying the book, or referencing its concepts."
 ---
-
-<!-- argument-hint: [topic, framework name, or chapter number] -->
 
 # <Full Title>
 **Author**: <Author(s)> | **Pages**: ~<N> | **Chapters**: <N> | **Generated**: <YYYY-MM-DD>
@@ -484,9 +479,9 @@ the relevant chapter file before answering.
 ---
 
 ## Core Frameworks & Mental Models
-<!-- ~2,000 tokens: the author's most important named frameworks and principles.
-     Preserve exact names. Write as "Use X when Y", "Prefer X over Y because Z".
-     This is a toolkit, not a summary. -->
+Use about 2,000 tokens for the author's most important named frameworks and
+principles. Preserve exact names. Write as "Use X when Y" or "Prefer X over Y
+because Z". This is a toolkit, not a summary.
 
 <generate 2,000 tokens of the most critical frameworks and insights here>
 
@@ -502,7 +497,7 @@ the relevant chapter file before answering.
 
 ## Topic Index
 
-<!-- Alphabetical. Major terms/frameworks → chapter(s) that cover them. -->
+List major terms and frameworks alphabetically with the chapters that cover them.
 - **<Term>** → ch<N>[, ch<N>]
 - **<Term>** → ch<N>
 
@@ -613,7 +608,7 @@ Share this skill (optional):
 
 After the Step 10 report, offer once — and only if the Step 9.5 scan passed:
 
-> "Want me to publish this skill to GitHub so any Agent Skills host can install it with `npx skills add`? (yes / skip)"
+> "Want me to publish this skill to GitHub so any Agent Skills host can install it with `npx skills@1.5.23 add`? (yes / skip)"
 
 If the user declines, stop here. Requirements: the `gh` CLI, authenticated (check `gh auth status`). If `gh` is missing or unauthenticated, offer to set it up (`brew install gh` or https://cli.github.com, then `gh auth login`) — or use the no-`gh` path: the user creates an empty repo of the chosen visibility in the GitHub web UI, then you run the `git init`/`add`/`commit` commands below followed by `git remote add origin <repo-url> && git push -u origin main`. The visibility rule below applies to the web-created repo exactly the same.
 
@@ -627,8 +622,8 @@ If the user declines, stop here. Requirements: the `gh` CLI, authenticated (chec
 
 If accepted:
 
-1. Add a repo `README.md` inside `$SKILLS_HOME/<skill_name>/` (never overwrite an existing file) — the skill title, a one-paragraph description ("Agent skill generated from *<Title>* by <Author> with [book-to-skill](https://github.com/virgiliojr94/book-to-skill)"), the install command from step 3 below, the file inventory, and a note that the content is synthesized summaries, not the book text.
-2. Initialize the skill folder as a git repository and create the remote (default repo name `<skill_name>`; let the user override — some prefer a `<skill_name>-skill` suffix). **Nested-repo guard:** first check whether the skill folder already sits inside a git repository (`git -C "$SKILLS_HOME/<skill_name>" rev-parse --show-toplevel` — always the case for project-local roots like `.claude/skills/`). If it does, do NOT `git init` in place: the outer repository would record the folder as an embedded repo (gitlink, mode 160000) without `.gitmodules`, and fresh clones of the outer project would silently omit the skill. Instead, copy the skill folder to a scratch directory, run the commands below from the copy, and tell the user the published repo — not the project-local folder — is the remote's working copy.
+1. Add a repo `README.md` inside <code>$SKILLS_HOME/&lt;skill_name&gt;/</code> (never overwrite an existing file) — the skill title, a one-paragraph description ("Agent skill generated from *<Title>* by <Author> with [book-to-skill](https://github.com/virgiliojr94/book-to-skill)"), the install command from step 3 below, the file inventory, and a note that the content is synthesized summaries, not the book text.
+2. Initialize the skill folder as a git repository and create the remote (default repo name `<skill_name>`; let the user override — some prefer a `<skill_name>-skill` suffix). **Nested-repo guard:** first check whether the skill folder already sits inside a git repository (<code>git -C "$SKILLS_HOME/&lt;skill_name&gt;" rev-parse --show-toplevel</code> — always the case for project-local roots like `.claude/skills/`). If it does, do NOT `git init` in place: the outer repository would record the folder as an embedded repo (gitlink, mode 160000) without `.gitmodules`, and fresh clones of the outer project would silently omit the skill. Instead, copy the skill folder to a scratch directory, run the commands below from the copy, and tell the user the published repo — not the project-local folder — is the remote's working copy.
 
 ```bash
 cd "$SKILLS_HOME/<skill_name>"
@@ -646,7 +641,7 @@ gh repo create <repo_name> --private --source . --push
 ✅ Published: https://github.com/<owner>/<repo_name> (<private|public>)
 
 Install on any Agent Skills host:
-  npx skills add https://github.com/<owner>/<repo_name> --skill <skill_name>
+  npx skills@1.5.23 add https://github.com/<owner>/<repo_name> --skill <skill_name>
 ```
 
    When the nested-repo guard fired and the repo was published from a scratch copy, add one line — that local folder never gains a remote, so the Update/Fold-in push offer will never appear for it:
@@ -657,19 +652,19 @@ Install on any Agent Skills host:
     https://github.com/<owner>/<repo_name> and fold new material into the clone.
 ```
 
-The root-level `SKILL.md` layout is exactly what the `skills` CLI detects, so the repo is installable as-is — no restructuring needed. Outside the nested-repo case the local folder stays the live install for this machine and is the remote's working copy, so later Update/Fold-in runs can commit and push their changes to the same remote.
+The generated root manifest layout is exactly what the pinned `skills` CLI detects, so the repo is installable as-is — no restructuring needed. Outside the nested-repo case the local folder stays the live install for this machine and is the remote's working copy, so later Update/Fold-in runs can commit and push their changes to the same remote.
 
 ---
 
 ## Update / Fold-in Workflow
 
-When performing an Update/Fold-in operation on an existing skill at `$SKILLS_HOME/<skill_name>/`:
+When performing an Update/Fold-in operation on an existing skill at <code>$SKILLS_HOME/&lt;skill_name&gt;/</code>:
 
 ### 1. Read Existing Skill Structure
 Read and parse the existing skill's files:
-- Read `$SKILLS_HOME/<skill_name>/SKILL.md` to parse the existing **Chapter Index**, **Topic Index**, metadata (author, total chapters), and **Core Frameworks**.
-- List all files in `$SKILLS_HOME/<skill_name>/chapters/` to find the highest chapter number (e.g. `ch12`).
-- Read `$SKILLS_HOME/<skill_name>/glossary.md`, `$SKILLS_HOME/<skill_name>/patterns.md`, and `$SKILLS_HOME/<skill_name>/cheatsheet.md` to see what terms and frameworks are already indexed.
+- Read <code>$SKILLS_HOME/&lt;skill_name&gt;/SKILL.md</code> to parse the existing **Chapter Index**, **Topic Index**, metadata (author, total chapters), and **Core Frameworks**.
+- List all files in <code>$SKILLS_HOME/&lt;skill_name&gt;/chapters/</code> to find the highest chapter number (e.g. `ch12`).
+- Read <code>$SKILLS_HOME/&lt;skill_name&gt;/glossary.md</code>, <code>$SKILLS_HOME/&lt;skill_name&gt;/patterns.md</code>, and <code>$SKILLS_HOME/&lt;skill_name&gt;/cheatsheet.md</code> to see what terms and frameworks are already indexed.
 
 ### 2. Match Content & Identify Revisions vs. Additions
 Analyze the new extracted text in the extractor-printed `full_text.txt` path to identify if the new content represents:
@@ -680,26 +675,26 @@ Analyze the new extracted text in the extractor-printed `full_text.txt` path to 
 For each new or revised chapter:
 - Read the corresponding section of the extracted new text.
 - Follow the formatting guidelines in **Step 7** to build the summary.
-- Write/update the file in `$SKILLS_HOME/<skill_name>/chapters/`.
+- Write/update the file in <code>$SKILLS_HOME/&lt;skill_name&gt;/chapters/</code>.
 
 ### 4. Merge Supporting Files
 - **Merge glossary.md**:
-  - Read the existing `$SKILLS_HOME/<skill_name>/glossary.md`.
+  - Read the existing <code>$SKILLS_HOME/&lt;skill_name&gt;/glossary.md</code>.
   - Extract all new terms and definitions from the new content (Step 8 glossary guidelines).
   - Combine and alphabetize the list of existing and new terms.
   - If a term already exists, append the new chapter/source references to it (e.g. `**Term** — definition (Ch 4, Ch 13)`).
-  - Rewrite `$SKILLS_HOME/<skill_name>/glossary.md` with the fully merged, alphabetized list.
+  - Rewrite <code>$SKILLS_HOME/&lt;skill_name&gt;/glossary.md</code> with the fully merged, alphabetized list.
 - **Merge patterns.md**:
-  - Read existing `$SKILLS_HOME/<skill_name>/patterns.md`.
+  - Read existing <code>$SKILLS_HOME/&lt;skill_name&gt;/patterns.md</code>.
   - Extract any new techniques, algorithms, or patterns from the new content.
   - Append the new patterns, ensuring consistent formatting, and keeping the total length concise (under 2,500 tokens).
 - **Merge cheatsheet.md**:
-  - Read existing `$SKILLS_HOME/<skill_name>/cheatsheet.md`.
+  - Read existing <code>$SKILLS_HOME/&lt;skill_name&gt;/cheatsheet.md</code>.
   - Extract new comparison rules, decision tables, or parameter guides.
   - Integrate them cleanly into the cheatsheet structure.
 
 ### 5. Re-generate the Master SKILL.md
-Update the master skill file `$SKILLS_HOME/<skill_name>/SKILL.md`:
+Update the master skill file <code>$SKILLS_HOME/&lt;skill_name&gt;/SKILL.md</code>:
 - **Metadata**: Increment the chapter count, update the estimated page count, and add the new source names if appropriate. Update the `Generated` date to the current date.
 - **Core Frameworks**: Fold in the most high-impact mental models or principles from the new content (ensuring the overall file remains under 4,000 tokens).
 - **Chapter Index**: Append the new chapters to the index table, linking to the newly created files.

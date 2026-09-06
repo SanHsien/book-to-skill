@@ -29,6 +29,7 @@
 python -m venv .venv
 .venv\Scripts\python -m pip install --upgrade pip
 .venv\Scripts\python -m pip install pytest ruff defusedxml
+.venv\Scripts\python -m pip install -r requirements-security.txt
 $env:PYTHONUTF8 = "1"
 pwsh -NoProfile -File tools\dev_check.ps1
 .venv\Scripts\python scripts\extract.py --check
@@ -41,6 +42,10 @@ pwsh -NoProfile -File tools\dev_check.ps1
 # 技術書表格／程式碼：
 .venv\Scripts\python -m pip install -e ".[technical]"
 ```
+
+基礎套件仍支援 Python 3.9。`pdfminer.six` 與 `docling` 的已審查版本要求
+Python 3.10+，所以 Python 3.9 會略過這兩個 optional parser；`pypdf` 仍提供
+PDF 文字抽取備援。
 
 Windows 上的外部工具：
 
@@ -62,6 +67,16 @@ Windows 預設工作目錄是 `%LOCALAPPDATA%\book-to-skill\work`。可用 `BOOK
 2. `ruff check`（E9 + F，與上游 CI 相同）
 3. `pytest tests/ -q`
 4. `python tools/validate_skill.py SKILL.md`
+5. 用 `requirements-security.txt` 釘定的 SkillSpector 掃描 fresh-clone 會交付的檔案；任一 analyzer 未完整完成就失敗
+
+完整性 checker 會核對釘定版本的 exact 24-analyzer set 與 100% 檔案覆蓋。唯一可接受的
+頂層 `partial` 是 nonfatal `reference_unresolved`，且 ledger 與 reference source-line
+key set 必須完全對應；這只表示路徑樣式文字無法解析，不放寬任何 analyzer 計數。
+更新 SkillSpector pin 時，必須重新審查並同步 checker 的 expected analyzer set。
+
+`tools\dev_check.ps1` 預設以 `.venv` 的 Python 執行掃描，不依賴 PATH 上的
+`skillspector.exe`。若掃描器裝在另一個環境，可傳
+`-SkillSpectorPython <python.exe 路徑>`。
 
 push 到 `main`（以及外部 PR）時，GitHub 另在 Ubuntu 跑 3.9–3.13 矩陣、smoke extraction、bandit，以及本 fork 新增的 Windows job。
 

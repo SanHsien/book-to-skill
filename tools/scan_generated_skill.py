@@ -17,7 +17,7 @@ MAX_FILE_BYTES = 2 * 1024 * 1024
 MAX_TOTAL_BYTES = 20 * 1024 * 1024
 SUPPORTING_FILENAMES = ("glossary.md", "patterns.md", "cheatsheet.md")
 
-# Reuse the extractor's invisible-code-point set instead of duplicating it, so
+# Reuse the invisible-code-point set from the extractor instead of duplicating it, so
 # the two injection defenses cannot drift apart. They previously did: the
 # extractor did not strip U+2060 while this scanner flagged it, so a generated
 # skill was warned about a character extraction was meant to have removed.

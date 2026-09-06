@@ -1319,7 +1319,7 @@ class TestDocxExtraction:
         xml = textwrap.dedent(f"""\
             <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
             <!DOCTYPE w:document [
-              <!ENTITY xxe SYSTEM "file:///etc/passwd">
+              <!ENTITY xxe SYSTEM "file:///tmp/book-to-skill-xxe-sentinel">
             ]>
             <w:document xmlns:w="{ns}">
               <w:body>
@@ -1350,7 +1350,7 @@ class TestDocxExtraction:
         xml = textwrap.dedent(f"""\
             <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
             <!DOCTYPE w:document [
-              <!ENTITY xxe SYSTEM "file:///etc/passwd">
+              <!ENTITY xxe SYSTEM "file:///tmp/book-to-skill-xxe-sentinel">
             ]>
             <w:document xmlns:w="{ns}">
               <w:body>
@@ -1398,7 +1398,7 @@ class TestDocxExtraction:
         xml = textwrap.dedent(f"""\
             <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
             <!DOCTYPE w:document [
-              <!ENTITY xxe SYSTEM "file:///etc/passwd">
+              <!ENTITY xxe SYSTEM "file:///tmp/book-to-skill-xxe-sentinel">
             ]>
             <w:document xmlns:w="{ns}">
               <w:body>

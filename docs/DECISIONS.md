@@ -87,3 +87,25 @@ commit 水位。那兩個面向不是「查過沒發現」，是根本沒查，�
 綠燈不是「沒有待辦」，是沒有人看。
 
 **觸發條件**：報告列出項目時逐筆讀 diff、把採用／略過理由寫進本檔，然後才推進 baseline 的水位。
+
+## 2026-09-06：文件 parser 與 SkillSpector gate 採可重現版本
+
+**決定**：會處理不可信文件的 optional parser 固定為 `pypdf==6.17.0`、
+`pdfminer.six==20260107`、`python-docx==1.2.0`、`docling==2.126.0`。
+`pdfminer.six` 與 `docling` 加 Python 3.10+ 環境 marker；基礎套件與 `pypdf` 仍支援 Python 3.9。
+SkillSpector 固定到 SanHsien fork 的精確 commit，canonical gate 以明確 Python
+直譯器啟動，不依賴 PATH 上偶然存在的 console script。
+
+**完整性契約**：任一適用 analyzer 的 partial、skipped、unaccounted 或未解釋 failed
+都失敗。PNG/JPG/WEBP 被掃描器明確記為 `binary_content/out_of_scope` 時，僅在每個
+failed 計數都能一對一對應到該 scope exclusion 時接受；不把它當成已掃描文字內容。
+gate 另核對釘定 `--no-llm` revision 的 24 個 analyzer ID，缺少或多出任何 ID 都失敗。
+頂層只有在 100% 元件完整檢查時才可通過；掃描器把一般文字誤判成路徑而產生的 nonfatal
+`reference_unresolved` 可保留 `partial`，但每個 ledger source-line key 必須與
+`references` 中的 missing/partial key set 完全一致，其他 exception 一律失敗。
+
+**產品文字調整**：只把會讓 bounded shell parser 把 Markdown code span 誤當成未閉合
+shell 語句的路徑表示改為等義 HTML code 或一般敘述；轉換流程、覆寫確認與發布邊界不變。
+發布說明中的 `npx skills` 固定為 npm 當前查得的 `skills@1.5.23`，避免未鎖版 CLI
+rug-pull 風險。安全回歸測試仍保留 prompt injection 與 `.env` 外傳樣本；這些刻意的
+惡意 fixture 只用逐筆精確 fingerprint 接受，不改成漂移式 glob。

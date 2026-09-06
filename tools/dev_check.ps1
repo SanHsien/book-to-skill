@@ -1,5 +1,7 @@
 [CmdletBinding()]
-param()
+param(
+    [string]$SkillSpectorPython = ""
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -12,6 +14,14 @@ if (Test-Path -LiteralPath $venvPython) {
     $pythonExe = $venvPython
 } else {
     $pythonExe = (Get-Command python -ErrorAction Stop).Source
+}
+
+if ([string]::IsNullOrWhiteSpace($SkillSpectorPython)) {
+    $skillSpectorPythonExe = $pythonExe
+} elseif (Test-Path -LiteralPath $SkillSpectorPython -PathType Leaf) {
+    $skillSpectorPythonExe = (Resolve-Path -LiteralPath $SkillSpectorPython).Path
+} else {
+    $skillSpectorPythonExe = (Get-Command $SkillSpectorPython -ErrorAction Stop).Source
 }
 
 $env:PYTHONUTF8 = "1"
@@ -70,10 +80,11 @@ function Invoke-SkillSpectorSelfScan {
         [string]$RepoRoot
     )
 
-    $skillSpectorCmd = Get-Command skillspector -ErrorAction SilentlyContinue
-    if (-not $skillSpectorCmd) {
-        Write-Host "==> SkillSpector self-scan (skipped: 'skillspector' not found on PATH)"
-        return
+    & $script:skillSpectorPythonExe -c "import skillspector" 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        throw ("Required SkillSpector self-scan cannot run in the selected Python. " +
+            "Install requirements-security.txt before running " +
+            "this canonical gate.")
     }
 
     $baselinePath = Join-Path $RepoRoot ".skillspector-baseline.yaml"
@@ -92,6 +103,21 @@ function Invoke-SkillSpectorSelfScan {
     )
     New-Item -ItemType Directory -Force -Path $stageDir | Out-Null
 
+    # Remove the scanner's 30-second per-artifact ceiling. It bounds pathological
+    # input, but a large file on slow storage sits close enough to it that machine
+    # load decides whether the scan completes -- the same tree then passes or exits 2
+    # depending on what else is running. A gate has to be reproducible, so here we buy
+    # completeness with wall time. Needs SkillSpector >= the commit that added
+    # SKILLSPECTOR_MAX_STATIC_SECONDS; older builds ignore it and keep the 30s default,
+    # which is the previous behaviour rather than a silent weakening.
+    $previousStaticBudget = $env:SKILLSPECTOR_MAX_STATIC_SECONDS
+    $previousWorkflowBudget = $env:SKILLSPECTOR_MAX_WORKFLOW_SECONDS
+    $env:SKILLSPECTOR_MAX_STATIC_SECONDS = "0"
+    # The whole repository is scanned as one bundle, so the 60-second graph-wide
+    # budget is the binding one: it expires part-way through and every remaining
+    # file is recorded as runtime_limit with no findings, which reads as a clean
+    # scan. Lift both or the gate reports "no findings" for files it never opened.
+    $env:SKILLSPECTOR_MAX_WORKFLOW_SECONDS = "0"
     try {
         Write-Host "==> SkillSpector self-scan (git-tracked files, staged copy)"
         $files = git -C $RepoRoot ls-files --cached --others --exclude-standard |
@@ -109,21 +135,28 @@ function Invoke-SkillSpectorSelfScan {
             Copy-Item -LiteralPath $source -Destination $destination -Force
         }
 
-        & $skillSpectorCmd.Source scan $stageDir --no-llm --format json --output $reportPath --baseline $baselinePath
+        $skillSpectorBootstrap = "from skillspector.cli import app; app()"
+        & $script:skillSpectorPythonExe -c $skillSpectorBootstrap scan $stageDir `
+            --no-llm --format json --output $reportPath --baseline $baselinePath
         if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne 1) {
             throw "skillspector scan crashed (exit code $LASTEXITCODE); see $reportPath"
         }
-        $report = Get-Content -LiteralPath $reportPath -Raw | ConvertFrom-Json
-        if ($report.issues.Count -gt 0) {
-            throw ("SkillSpector found " + $report.issues.Count + " new, un-baselined " +
-                "finding(s). Review " + $reportPath + " and either fix the content or add a " +
-                "reviewed fingerprint/rule to .skillspector-baseline.yaml with a " +
-                "specific reason -- do not rubber-stamp CRITICAL or otherwise real " +
-                "findings into the baseline.")
+        & $script:pythonExe tools\check_skillspector_report.py $reportPath
+        $reportCheckExit = $LASTEXITCODE
+        if ($reportCheckExit -eq 1) {
+            throw ("SkillSpector found new, un-baselined finding(s). Review " +
+                $reportPath + " and either fix the content or add a reviewed exact " +
+                "fingerprint with a specific reason -- do not rubber-stamp real findings.")
+        }
+        if ($reportCheckExit -ne 0) {
+            throw ("SkillSpector did not fully account for every applicable analyzer; " +
+                "the security gate fails closed. Review " + $reportPath)
         }
         Write-Host "SkillSpector self-scan: no new findings."
     } finally {
         Remove-Item -Recurse -Force -LiteralPath $stageDir -ErrorAction SilentlyContinue
+        $env:SKILLSPECTOR_MAX_STATIC_SECONDS = $previousStaticBudget
+        $env:SKILLSPECTOR_MAX_WORKFLOW_SECONDS = $previousWorkflowBudget
     }
 }
 
