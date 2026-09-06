@@ -668,6 +668,15 @@ class TestDetectStructure:
         assert _chapter_number("এই অধ্যায়ে আমরা আলোচনা করব") is None
         assert _chapter_number("অধ্যায়") is None
 
+    def test_detects_russian_chapters_and_rejects_prose(self):
+        from book_to_skill.utils import _chapter_number
+
+        text = "Глава 1 Введение\nсодержание\n## ГЛАВА 2 Методы\nсодержание"
+        assert detect_structure(text)["chapters_detected"] == 2
+        assert _chapter_number("В этой главе мы обсудим") is None
+        assert _chapter_number("Главная страница") is None
+        assert _chapter_number("Глава") is None
+
     # ── Korean chapter headings ────────────────────────────────────────────
 
     def test_korean_je_n_jang(self):

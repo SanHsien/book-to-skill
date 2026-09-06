@@ -1,5 +1,13 @@
 # 維護決策
 
+## 2026-08-31：採用俄文章節標題，拒絕未分割的 host／governance 擴張
+
+**決定**：以最小 regex 與回歸測試採用上游 PR #199 的 `Глава N` 偵測；#200–#202 不採用，
+PR 審查水位推至 #202。
+
+**理由**：#199 自足、無新依賴，且誤判邊界可由 prose 測試固定。#200 是未啟用 eval，#201 把
+多項 CI/安全/產品行為混在一起，#202 則需 Hermes 的 discovery/trust 實機證據並違反本 fork 語系政策。
+
 ## 2026-08-22：本線預設分支改 `main`，日常直接推
 
 **決定**：`origin` 預設分支從 `master` 改為 `main`，與其他 SanHsien 維護 fork 一致。日常修改在本機跑 `tools\dev_check.ps1` 後直接推 `origin/main`，不開 feature branch。Dependabot 與外部貢獻仍走 PR，合併前讀 diff。

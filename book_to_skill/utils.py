@@ -198,6 +198,10 @@ _BN_CHAPTER = re.compile(
     rf"^\s*(?:#{{1,6}}\s+)?অধ্যায়\s*([0-9{_BN_DIGITS}]+)\b"
 )
 
+# Russian (Cyrillic) chapter headings: "Глава 1", "ГЛАВА 12", "## Глава 2".
+# Requiring whitespace then a number keeps prose forms from matching.
+_RU_CHAPTER = re.compile(r"^\s*(?:#{1,6}\s+)?глава\s+([0-9]+)\b", re.IGNORECASE)
+
 # Korean chapter headings: "제1장 총칙", "## 제4장 근로시간과 휴식", "제6장의2 …".
 # 제 + Arabic numeral + a classifier (장 chapter / 편 part / 절 section / 관
 # subsection), with an optional "의N" branch suffix that Korean statutes use for
@@ -573,6 +577,9 @@ def _match_chapter_number(line: str) -> int | None:
     bm = _BN_CHAPTER.match(s)
     if bm:
         return int(bm.group(1).translate(_BN_DIGIT_MAP))
+    rum = _RU_CHAPTER.match(s)
+    if rum:
+        return int(rum.group(1))
     km = _KO_CHAPTER.match(s)
     if km:
         return int(km.group(1))

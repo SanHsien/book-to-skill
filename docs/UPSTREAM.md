@@ -32,6 +32,17 @@ Baseline 代表「已審查」，不代表「全部已合併」。
 README 衝突的解法：上游新內容併進 `README.en.md`，再把對應段落翻進 `README.md`。
 第三語系檔（例如 `README.ru.md`）略過，不要合進本 fork。
 
+## 2026-08-31：PR #199–#202 判讀
+
+| PR | 決定 | 理由 |
+| --- | --- | --- |
+| #199 | 採用最小實作 | `Глава N` regex 與既有 Hindi/Bengali 分支同型；補大小寫、Markdown 與 prose false-positive 測試。 |
+| #200 | 不採用 | 只調整本 fork 明確不跑的 paper-flat eval。 |
+| #201 | 不採用 | 把 CI 規則、可選 `defusedxml`、zip-bomb policy、TOC 與 multi-source 行為綁成一個未分割改動；本 fork 已有自己的安全與 CI 契約，不能憑 PR 摘要覆蓋。 |
+| #202 | 不採用 | 擴張 Hermes Agent discovery／信任流程並改第三語言 README；本 fork 沒有該 host 的可驗證契約，且公開文件只維護繁中與英文。 |
+
+commit 水位仍為 `9c207f87`（上游沒有新 commit）；PR 水位推至 #202，issue 水位維持 #192。
+
 ## 2026-08-29：master 增量 15 筆逐筆審完，引用 5 筆
 
 `upstream-check` 自 2026-08-24 起紅燈（本 repo 用 `--strict` 讓 workflow 失敗當訊號，不開 issue）。
