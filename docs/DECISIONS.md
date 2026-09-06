@@ -104,6 +104,12 @@ gate 另核對釘定 `--no-llm` revision 的 24 個 analyzer ID，缺少或多�
 `reference_unresolved` 可保留 `partial`，但每個 ledger source-line key 必須與
 `references` 中的 missing/partial key set 完全一致，其他 exception 一律失敗。
 
+**2026-09-07 pin 修正**：pin 從 `70cd263` 前進到 `185d610`。舊 revision 尚未支援
+`SKILLSPECTOR_MAX_STATIC_SECONDS`／`SKILLSPECTOR_MAX_WORKFLOW_SECONDS`，fresh Windows
+runner 因而仍在預設 60 秒 graph budget 停止；本機的 editable SkillSpector source 則已是新版，
+讓先前本機 gate 無法揭露差異。新 revision 已確認位於 `SanHsien/SkillSpector` 遠端 main，且
+該 SHA 的 CI、CodeQL、Scorecard 全綠。
+
 **產品文字調整**：只把會讓 bounded shell parser 把 Markdown code span 誤當成未閉合
 shell 語句的路徑表示改為等義 HTML code 或一般敘述；轉換流程、覆寫確認與發布邊界不變。
 發布說明中的 `npx skills` 固定為 npm 當前查得的 `skills@1.5.23`，避免未鎖版 CLI
