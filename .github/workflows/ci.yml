@@ -24,8 +24,8 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: ${{ matrix.python-version }}
-      - name: Install pytest and defusedxml
-        run: pip install pytest defusedxml
+      - name: Install test dependencies
+        run: python -m pip install pytest defusedxml PyYAML
       - name: Run test suite
         run: pytest tests/ -q
 
@@ -45,7 +45,7 @@ jobs:
           python-version: "3.12"
       - name: Install test dependencies and pinned SkillSpector
         run: |
-          python -m pip install pytest ruff defusedxml
+          python -m pip install pytest ruff defusedxml PyYAML
           python -m pip install -r requirements-security.txt
       - name: Canonical Windows development gate
         shell: pwsh
