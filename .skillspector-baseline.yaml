@@ -96,6 +96,10 @@ fingerprints:
   rule_id: AST4
   file: tests/test_workdir_lock.py
   reason: 自我指涉：測試啟動一個固定執行 30 秒的 Python 子程序，驗證 workdir 鎖能辨識仍存活的不同 PID；命令與參數皆為測試內常數，且 finally 會終止並等待子程序。
+- hash: sha256:9c64edb52913f9bd78e709753a969874ed6a2f4cdf6522173bbf0ce065322e97
+  rule_id: AST4
+  file: tests/test_stage_scan_input.py
+  reason: 自我指涉：測試 helper 以 shell false 的 argv 陣列呼叫 git，只在 pytest tmp_path 建立的拋棄式 repo 內執行 init／config／add／commit，參數皆為測試常數。
 - hash: sha256:308182ee49f43f17e967d4d3400dd8fe726c86f52c26ead5a4c52785063d565b
   rule_id: AST4
   file: tools/check_upstream_updates.py
@@ -112,6 +116,10 @@ fingerprints:
   rule_id: TT2
   file: tools/check_dependency_freshness.py
   reason: 合理功能：tools/check_dependency_freshness.py 寫入 $GITHUB_OUTPUT 環境變數指定的檔案是 GitHub Actions 回傳 job output 的標準寫法，非資料外洩。
+- hash: sha256:aac739929e9325db2308246c59de421c0b39f38b61b74b1845b03265db108990
+  rule_id: AST4
+  file: tools/stage_scan_input.py
+  reason: 合理功能：自我掃描 gate 的暫存工具以 shell false 的 argv 陣列呼叫 git，只執行唯讀的 ls-files 取得檔案清單與 index 行尾；子命令為程式內常數，repo 路徑來自 dev_check.ps1 自身位置。
 - hash: sha256:02f158f79880c1b75c72d930462f91d98ab738a962e7b3778b78a1740307e614
   rule_id: LP3
   file: SKILL.md

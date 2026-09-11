@@ -70,6 +70,10 @@ function Invoke-SkillSpectorSelfScan {
     # local-only, gitignored artifacts (.venv, .ruff_cache, __pycache__,
     # downloaded books, generated output) that would otherwise make findings
     # unstable across machines and inflate scan time on content nobody installs.
+    # tools\stage_scan_input.py also restores the index line endings: exact
+    # fingerprints hash file content, and a checkout made before .gitattributes
+    # keeps CRLF text files that CI checks out as LF, which would otherwise report
+    # every baselined finding as new on that machine.
     #
     # Gate signal is the JSON report's issues array, not $LASTEXITCODE:
     # SkillSpector's exit code reflects an aggregate risk-score threshold (see its
@@ -130,19 +134,10 @@ function Invoke-SkillSpectorSelfScan {
     $env:PYTHONHASHSEED = "0"
     try {
         Write-Host "==> SkillSpector self-scan (git-tracked files, staged copy)"
-        $files = git -C $RepoRoot ls-files --cached --others --exclude-standard |
-            Where-Object { $_ -ne ".skillspector-baseline.yaml" }
+        & $script:pythonExe tools\stage_scan_input.py --repo $RepoRoot --dest $stageDir `
+            --exclude .skillspector-baseline.yaml
         if ($LASTEXITCODE -ne 0) {
-            throw "git ls-files failed with exit code $LASTEXITCODE"
-        }
-        foreach ($relativePath in $files) {
-            $source = Join-Path $RepoRoot $relativePath
-            $destination = Join-Path $stageDir $relativePath
-            $destinationDir = Split-Path -Parent $destination
-            if ($destinationDir -and -not (Test-Path -LiteralPath $destinationDir)) {
-                New-Item -ItemType Directory -Force -Path $destinationDir | Out-Null
-            }
-            Copy-Item -LiteralPath $source -Destination $destination -Force
+            throw "Staging the SkillSpector scan input failed with exit code $LASTEXITCODE"
         }
 
         & $script:skillSpectorPythonExe tools\run_skillspector.py $stageDir `
