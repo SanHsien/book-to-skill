@@ -8,7 +8,7 @@
 # New findings are NOT suppressed automatically -- they fail tools/dev_check.ps1 until
 # someone reviews them and adds a fingerprint + reason here (or fixes the content).
 version: 2
-scanner_version: 2.11.0
+scanner_version: 2.11.2
 rules:
 - id: PE3
   path: .gitignore
@@ -60,107 +60,107 @@ rules:
   message: '*subprocess*'
   reason: 已人工審查：測試 helper 以 shell false 的固定 argv 陣列呼叫 git，輸入為測試常數且有 30 秒 timeout，不拼接 shell。
 fingerprints:
-- hash: sha256:983d6f4a22333b0e4b8c985ac68decaae94c21a0282e5f35556e4262836c777b
+- hash: sha256:7ed79c358c738d078e6ed102992dff59d87c91b85d662aa6dc16d28e11578737
   rule_id: AE4
   file: tests/test_book_to_skill.py
   reason: 已人工審查：測試刻意含 Unicode 正規化與控制字元樣本以驗證 sanitizer，不含偽裝指令或機密。
-- hash: sha256:fa5da6fbaaf38f93d1e38f62d500338cc879415599c936ad0014229b7c8bb52d
+- hash: sha256:399b26fdf55b2053257fb6c84c41f0803ea37bd0e81f91af2206519a1896b087
   rule_id: AST4
   file: book_to_skill/dependencies.py
   reason: 合理功能：本工具的核心功能就是呼叫外部轉檔程式（pdftotext、ebook-convert）進行文件解析，以及內部維運腳本呼叫 git／gh 檢查上游狀態；參數皆為固定字面值或程式內驗證過的路徑，不會拼接任意使用者輸入。
-- hash: sha256:75eb5ace597a9361ebab3b60c4c725ad743dc6b3e524dae7891cc6040e5b30ad
+- hash: sha256:8329bffafc9757d513b4c5458bb800e33bc0d1b86463340194bae0d72392b790
   rule_id: AST4
   file: book_to_skill/parsers/calibre.py
   reason: 合理功能：本工具的核心功能就是呼叫外部轉檔程式（pdftotext、ebook-convert）進行文件解析，以及內部維運腳本呼叫 git／gh 檢查上游狀態；參數皆為固定字面值或程式內驗證過的路徑，不會拼接任意使用者輸入。
-- hash: sha256:a93ba7cca6e46021a5b2e527e34a71938bd4819096d4f8eda3d05ebc25c8eba5
+- hash: sha256:4b1f888a6852a6006a6f5020bcdba0b4e32fc899b3712e3e4b35354f67afb0c7
   rule_id: AST4
   file: book_to_skill/parsers/pdf.py
   reason: 合理功能：本工具的核心功能就是呼叫外部轉檔程式（pdftotext、ebook-convert）進行文件解析，以及內部維運腳本呼叫 git／gh 檢查上游狀態；參數皆為固定字面值或程式內驗證過的路徑，不會拼接任意使用者輸入。
-- hash: sha256:06d7d3348def4dd79edb8d78908259b4a5d75d1fa3ebba55be645104e3336f38
+- hash: sha256:74505c84bb7568e7c03cbc45b88866ba0e2c2fe73350a1de1df40530ec625241
   rule_id: AST4
   file: book_to_skill/parsers/pdf.py
   reason: 合理功能：本工具的核心功能就是呼叫外部轉檔程式（pdftotext、ebook-convert）進行文件解析，以及內部維運腳本呼叫 git／gh 檢查上游狀態；參數皆為固定字面值或程式內驗證過的路徑，不會拼接任意使用者輸入。
-- hash: sha256:a439fc810f98bd811343e4c627019676b91b70bcd72b2d6773e34ab22b189e6a
+- hash: sha256:15bc94fba5660fda5177e8b50c92f95f6fe106ec9b473555e8e979db1103e00e
   rule_id: AST4
   file: book_to_skill/parsers/pdf.py
   reason: 合理功能：本工具的核心功能就是呼叫外部轉檔程式（pdftotext、ebook-convert）進行文件解析，以及內部維運腳本呼叫 git／gh 檢查上游狀態；參數皆為固定字面值或程式內驗證過的路徑，不會拼接任意使用者輸入。
-- hash: sha256:bdecabaab45954db5d740e2b06cac70c325bfa29e026b5b140de93ce67f14686
+- hash: sha256:366f0b322625ff8653ab8d7b3118e08a854bb75c9f58a6a970e43037c1deb2a1
   rule_id: AST3
   file: tests/test_discovery_tax.py
   reason: 自我指涉：tests/test_discovery_tax.py 內的 __import__("re") 是測試輔助程式碼的行內寫法慣例，模組名稱是程式內寫死的常數，非外部輸入。
-- hash: sha256:41c5f095fa6d2beea293462e57460695fe51b29204f01c656f8cfc6b11dfef25
+- hash: sha256:d8e2e75efd5c52002b241685535628e2e0776d609ea95fc52c0f9c420457b15a
   rule_id: AST7
   file: tests/test_html_block_boundaries.py
   reason: 自我指涉：tests/test_html_block_boundaries.py 使用 pytest parametrize 搭配 getattr 存取測試類別上固定的屬性名稱（皆為程式內寫死的常數字串），非任意屬性存取。
-- hash: sha256:c4f883f5dded218a3e33ae928822e570c7ac0b1529fe7ea7f66e88d6beac5ed8
+- hash: sha256:f9989acecbe850f287ef328e291ade434fe4ebcc56afdca39b7e6a5a27129d48
   rule_id: AST4
   file: tests/test_workdir_lock.py
   reason: 自我指涉：測試啟動一個固定執行 30 秒的 Python 子程序，驗證 workdir 鎖能辨識仍存活的不同 PID；命令與參數皆為測試內常數，且 finally 會終止並等待子程序。
-- hash: sha256:8cf8570c5607c69bf18906e2965252a19cbe9fb93c0a42c469be01c00c06b73c
+- hash: sha256:308182ee49f43f17e967d4d3400dd8fe726c86f52c26ead5a4c52785063d565b
   rule_id: AST4
   file: tools/check_upstream_updates.py
   reason: 合理功能：本工具的核心功能就是呼叫外部轉檔程式（pdftotext、ebook-convert）進行文件解析，以及內部維運腳本呼叫 git／gh 檢查上游狀態；參數皆為固定字面值或程式內驗證過的路徑，不會拼接任意使用者輸入。
-- hash: sha256:d08ac85562dba20d28cdadf1eb672925a75f60100d0c24f7b33eacb6e97908da
+- hash: sha256:34bd79d7796893f5a4254a92a50ad91f144fd3bc0b7bc083f78e1456665509e0
   rule_id: AST4
   file: tools/check_upstream_updates.py
   reason: 合理功能：本工具的核心功能就是呼叫外部轉檔程式（pdftotext、ebook-convert）進行文件解析，以及內部維運腳本呼叫 git／gh 檢查上游狀態；參數皆為固定字面值或程式內驗證過的路徑，不會拼接任意使用者輸入。
-- hash: sha256:344b0ca3c2575dd7af8e924dcb210071ae151deaf8920c1c4916e4989ba66fa2
+- hash: sha256:0998704e3ea42d800c17145d5ac7cc3feafd2b9689793809bc86a556096fef15
   rule_id: TT2
   file: tools/check_dependency_freshness.py
   reason: 合理功能：tools/check_dependency_freshness.py 寫入 $GITHUB_OUTPUT 環境變數指定的檔案是 GitHub Actions 回傳 job output 的標準寫法，非資料外洩。
-- hash: sha256:e1c0e936e0cbebffa1dc740dd7446eca7528ccd641051a797901ac40eef9a988
+- hash: sha256:dc009f353246ed3ffa47397b62cf31c20493f52d4ff6acef5775b847ebd5d0a0
   rule_id: TT2
   file: tools/check_dependency_freshness.py
   reason: 合理功能：tools/check_dependency_freshness.py 寫入 $GITHUB_OUTPUT 環境變數指定的檔案是 GitHub Actions 回傳 job output 的標準寫法，非資料外洩。
-- hash: sha256:6edd1ca0932ad985761ac4732db6fbf273ab632f1813341c998f6b34abe0e16a
+- hash: sha256:02f158f79880c1b75c72d930462f91d98ab738a962e7b3778b78a1740307e614
   rule_id: LP3
   file: SKILL.md
   reason: 已人工審查：allowed-tools 刻意不寫死以維持多 host 相容；可見文件只宣告 shell 與檔案讀寫需求，各 host 仍在實際呼叫時執行授權。
-- hash: sha256:33acf8a45181d754a226c4a0b9a3847376e03fb43a2183a0f9dee31b96f3e9d4
+- hash: sha256:9359faccd14628d4b1c69f8720247e3c82c396d0c6780358c6c1c3bf4517355a
   rule_id: AS3
   file: README.en.md
   reason: 自我指涉：README／docs/install.md 列出各 agent host 的 skills 目錄路徑（~/.claude/skills/ 等）是安裝說明，不是執行期間列舉或讀取其他已安裝 skill 的內容。
-- hash: sha256:ee2ebc5629b41ac96f62fa8fd19d6145ce9ed87fed04a6f33b88b79018c20656
+- hash: sha256:68c3369ac02d26825295e7c029b2753c37a841fbe3689874cf5f0c0dbb5c4035
   rule_id: AS3
   file: README.md
   reason: 自我指涉：README／docs/install.md 列出各 agent host 的 skills 目錄路徑（~/.claude/skills/ 等）是安裝說明，不是執行期間列舉或讀取其他已安裝 skill 的內容。
-- hash: sha256:4031b7f40e3ac8d8ca62c05c602f9a41a9a9679550c89880b86afb5c20b1b5fd
+- hash: sha256:35a6296c92edcfa9138163f9ac755c2a068790a4b73be8f1621ead1bff6e0144
   rule_id: AS3
   file: docs/install.md
   reason: 自我指涉：README／docs/install.md 列出各 agent host 的 skills 目錄路徑（~/.claude/skills/ 等）是安裝說明，不是執行期間列舉或讀取其他已安裝 skill 的內容。
-- hash: sha256:e6303dbd39fea789b9e5556111dec72987a6bbe253e7fe1b646da15057777a41
+- hash: sha256:69ef0b0aca6c6276e6053dbd4128bcfcafd57d7e6eabfa372a12593c91915628
   rule_id: P2
   file: .github/PULL_REQUEST_TEMPLATE.md
   reason: 自我指涉：PR 範本與 SKILL.md 開頭的 HTML 註解是給人類貢獻者／跨 agent host 看的說明文字，不是要蓋過系統指令的注入內容。
-- hash: sha256:b2504e5b83e6114e083e59b6b95342fa52a9a524c67d17a2495d9cbaa4e5fd5a
+- hash: sha256:9df87605cbdc3d677f0b9e7e585ede3123c4965d528a13ad0f6b46ac381c0ffe
   rule_id: P2
   file: .github/PULL_REQUEST_TEMPLATE.md
   reason: 自我指涉：PR 範本與 SKILL.md 開頭的 HTML 註解是給人類貢獻者／跨 agent host 看的說明文字，不是要蓋過系統指令的注入內容。
-- hash: sha256:1ec046abbffd4db5b4557884cf26533447bbf97b36dfebe1c27fa58ae85a1987
+- hash: sha256:6d3862745fdfb8b953aaa1ce5b8e35eec105efe3f26a6573f4dbac613eabac3f
   rule_id: P1
   file: tests/test_scan_coverage.py
   reason: 已人工審查：這是 prompt-injection 掃描器的惡意回歸 fixture，測試要求偵測並拒絕該句，不會作為 agent 指令執行。
-- hash: sha256:2822c2ab7d5275b2963a0533c7bdfceb2830b7bb449ba6a9d1f0dba10f1b5bf0
+- hash: sha256:5bb141df7ab4b88af49a1c386f0ed2da5dc90a8953e8ef0a6342c4eeba5a77a6
   rule_id: P1
   file: tests/test_scan_generated_skill.py
   reason: 已人工審查：Ignore previous instructions 是明確的負向測試輸入，assert 要求掃描器回報 prompt.ignore_previous。
-- hash: sha256:a3d247b0c7541364f738fb5c14d390a60ce709bd73f201f814c79a17a8c66b01
+- hash: sha256:1f61afd3820954cda82c92675a294a1442149730e439d02c0aac39134e2fe5b6
   rule_id: SC4
   file: requirements-security.txt
   reason: 已人工審查：SkillSpector 以 SanHsien fork 的精確 Git commit 釘定；OSV 無法從 PEP 508 VCS URL 推導版本而以名稱查詢舊漏洞，並不代表該 commit 含未修補版本。
-- hash: sha256:efc9ddf34a3d75d8d87b11a96053fb88a24224103368f6b99173411dd452dfba
+- hash: sha256:88a6dd87038cbfabc2cc702c65136703293696947a99a60c6d6aea8406d09f76
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：文件明確禁止推送 upstream，並要求只推 SanHsien origin；這是安全邊界說明，不是參數濫用指令。
-- hash: sha256:c7d4126e78f7d2e8cacbda3e7bfacefd192f4ad038676cc819660f87f406689a
+- hash: sha256:002e1396efd6569e274d3d5122b6880a4da37556320c99730f82b20b45df3dac
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：同一段禁止推送 upstream 的 normalized view；沒有執行路徑，且保留此文字能防止誤推母 repo。
-- hash: sha256:aa7b99d1141d0597410a0795ec0c5645f3ea4f9bccae64c31351c2c44e503a1e
+- hash: sha256:3e8ebbebc9a90abbe042008e08549c6c142b6cdeb2ba15ed203b5ce3bb6db7e7
   rule_id: TM1
   file: tests/test_output_dir_security.py
   reason: 自我指涉：docs/DECISIONS.md 是維護決策記錄文字（提到 git push upstream 規則），tests/test_output_dir_security.py 是測試唯讀旗標行為的單元測試，均非工具誤用。
-- hash: sha256:924432540dfa7a68c71d21e1bc89813ac890b04b827bb15a5e8f9fb4a45c7f03
+- hash: sha256:a8befa20976f0ae8cd9e176e45b212cec1d98c07e76420b79677ff03b6442533
   rule_id: YR4
   file: tests/test_scan_generated_skill.py
   reason: 已人工審查：測試組合 prompt override、authority mutation、外傳與 Unicode 隱藏字元，目的是驗證 generated-skill scanner 全部攔截。
