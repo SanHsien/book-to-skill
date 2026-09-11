@@ -64,7 +64,7 @@ fingerprints:
   rule_id: AE4
   file: tests/test_book_to_skill.py
   reason: 已人工審查：測試刻意含 Unicode 正規化與控制字元樣本以驗證 sanitizer，不含偽裝指令或機密。
-- hash: sha256:399b26fdf55b2053257fb6c84c41f0803ea37bd0e81f91af2206519a1896b087
+- hash: sha256:24c041b2bcc6a3c9ae8fcdac527119e4e66ffb0c9f5c34bf39b120aee2d4e2e3
   rule_id: AST4
   file: book_to_skill/dependencies.py
   reason: 合理功能：本工具的核心功能就是呼叫外部轉檔程式（pdftotext、ebook-convert）進行文件解析，以及內部維運腳本呼叫 git／gh 檢查上游狀態；參數皆為固定字面值或程式內驗證過的路徑，不會拼接任意使用者輸入。
@@ -156,11 +156,11 @@ fingerprints:
   rule_id: SC4
   file: requirements-security.txt
   reason: 已人工審查：SkillSpector 以 SanHsien fork 的精確 Git commit 釘定；OSV 無法從 PEP 508 VCS URL 推導版本而以名稱查詢舊漏洞，並不代表該 commit 含未修補版本。
-- hash: sha256:88a6dd87038cbfabc2cc702c65136703293696947a99a60c6d6aea8406d09f76
+- hash: sha256:52d27489201e2ab643ab34e961656cb86b01bbcd563f2a9d78222dfde82645c6
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：文件明確禁止推送 upstream，並要求只推 SanHsien origin；這是安全邊界說明，不是參數濫用指令。
-- hash: sha256:002e1396efd6569e274d3d5122b6880a4da37556320c99730f82b20b45df3dac
+- hash: sha256:766e9e84fdeea0954e3e8964a00781307a7659eade055e13b227bb9e1ce61b0a
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：同一段禁止推送 upstream 的 normalized view；沒有執行路徑，且保留此文字能防止誤推母 repo。

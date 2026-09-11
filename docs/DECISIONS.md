@@ -1,5 +1,72 @@
 # 維護決策
 
+## 2026-09-11：上游批次審查，採用一個可重現的缺陷修正，其餘延後或略過
+
+**決定**：
+
+- **採用** 上游 open PR #208（`fix(deps): honor alternative parser availability`，cherry-pick
+  `b3891d8`）。本 fork 的 `prepare_dependencies()` 呼叫 `offer_dependency_install()` 給
+  PDF／HTML 時沒有帶 `any_of_modules=True`，即使 `pypdf` 或 `trafilatura` 已可用，仍會提示安裝
+  `pdfminer.six` 或漏掉 `trafilatura` 的存在判斷。這是本 fork **實測重現**的缺陷（stub
+  `python_module_available` 只放行 `pypdf`，`prepare_dependencies(".pdf", "text", "yes")`
+  仍呼叫 `install_python_packages(["pdfminer.six"])`），套用修正後同一測試不再觸發安裝。符合
+  「open PR 只在修到本 fork 實際有的缺陷才採用」的門檻。
+- **延後至合併，並附誤報證據** 上游 open PR #214（`sec: harden prompt-injection protection`）。
+  它補的缺口是真的：既有 `prompt.ignore_previous` 只認 previous／prior 兩種受詞，
+  ignore／disregard 搭配 above／following 的變形認不出來，也沒有 assistant 角色偽前綴規則。但同一個
+  PR 另外三條規則的精確度不足以放進會擋流程的掃描器：`tools/scan_generated_skill.py` 任何 finding
+  都回 exit 1，而 SKILL.md Step 9.5 規定非零就停下交人審。實測一份普通的測試主題章節（三句
+  "you should／must／need to"、一個延伸閱讀網址、一個 40 位 commit SHA）與一行 "Use this skill
+  when you need to..." 的 SKILL.md：未套用前 exit 0，套用 #214 後 6 筆 finding、exit 1——
+  `prompt.ai_directive` 對書中常見的第二人稱建議句全數命中，`prompt.raw_url` 命中引用網址，
+  `prompt.encoded_blob` 命中 commit SHA。幾乎每本書產生的 skill 都會被擋，警告因此失去意義。
+  曾先 cherry-pick 在本機（未推送），驗證後移除。**觸發條件**：上游合併時重看最終 diff；若三條
+  高誤報規則仍在，只以最小重做引入 `prompt.ignore_instructions` 與 `prompt.fake_assistant_prefix`
+  兩條高精確度規則與其測試。
+- **不採用（已涵蓋）** upstream commit `4117064`（PR #199 落地，俄文 `Глава N` 章節偵測）：
+  本 fork 已於 2026-08-31 用**最小自製實作**採用同一個 PR（commit `5f523d8`），regex 與
+  行為（大小寫不敏感、Markdown 前綴、拒絕 "В этой главе"/"Главная" 等變形）等價，只是註解較短、
+  測試合併成一條。不是「跳過」，是先前已引用；比對測試斷言確認等價覆蓋。
+- **不採用** `907be50`（Hermes Agent host discovery，PR #202 落地）：延續 2026-08-31 的判斷，
+  內容未變（README/README.ru.md/SKILL.md/docs 的 host 擴張，本 fork 沒有 Hermes 的可驗證契約）。
+- **不採用** `67f52fd`（pdf-inspector smart routing，PR #203 落地）：新增必要／選配相依套件
+  `pdf-inspector>=1.15,<2`（Firecrawl 發布），改變 PDF 抽取的信任邊界（`_MIN_NATIVE_CONFIDENCE`
+  門檻通過時完全略過既有 pdftotext/pypdf/pdfminer 鏈）。這是供應鏈信任決策，本 fork 沒有
+  對這個套件的審查依據，**留給維護者決定**是否要引入這個新的執行期依賴；不阻塞其他項目。
+- **不採用** `4f1ca4d`（eval 檔案排序穩定化，PR #200 落地）：實測確認本 fork 沒有 `tests/evals/`
+  目錄，延續「本 fork 不跑那套 eval」的既有判斷。
+- **不採用** `3398180`（CI SHA pin 加版本註解＋codeql-action pin，PR #198 落地）：本 fork 的
+  `.github/workflows/ci.yml`／`codeql.yml` 已與上游分岔（`main` 分支、Windows gate job、
+  自己的 SHA pin 慣例），不共用這些檔案，延續既有判斷。
+- **不採用** `a6cad12`（新增簡體中文 README，PR #204 落地）：只新增第三語系 `README.zh-CN.md`
+  並更新 `README.md`／`README.ru.md` 的語系切換連結；本 fork 公開文件只維護繁中
+  `README.md` 與 `README.en.md`，延續 2026-08-22 的第三語系政策。
+- **延後至合併**（open PR，非本 fork 缺陷）：
+  - #206 Greek `Κεφάλαιο N`、#212 Tamil `அத்தியாயம் N` 章節偵測——與已採用的俄文／希臘文同型、
+    自足且有回歸測試，但**還是 open PR**，不是缺陷修正（缺少某語言偵測不算本 fork 的
+    demonstrable 缺陷），比照既有政策等上游合併再一次審查。
+  - #209 OpenClaw、#216 Opencode host discovery——與 Hermes（#202）同形狀：改
+    `README.md`／`README.ru.md`／`README.zh-CN.md`／`SKILL.md` 的 host 探索表，本 fork 對
+    這些 host 沒有可驗證契約，且 SKILL.md 的 host 表已因拒絕 Hermes 而分岔。
+  - #210 project-local skill path scope 選擇——修改 `SKILL.md` Step 5 的目的地選擇邏輯，是
+    product-direction 功能而非缺陷，且該區塊已因 Hermes 拒絕而分岔，比照 #157/#170 的既有
+    判準：等上游合併定案再讀 diff。
+  - #211 grounding/fidelity gate（Step 9.5b `tools/ground_check.py`）——設計完整、有回歸測試、
+    不動 host 表，是本次批次品質最高的一個，但仍是**新功能**（在生成流程中新增強制關卡）而非
+    修本 fork 的缺陷，且會改變 Step 7／Step 9.5 之間的產出契約。延後至合併；**建議維護者優先
+    複審**，其防禦的失效模式（一次性生成把 worked example 或分類數量從記憶填入而非來源文字）
+    與本 fork 已有的 prompt-injection 掃描精神一致。
+  - #215 cue-omni-reader 文件——推薦以 skills CLI 安裝第三方 `sensedeal/cue-skills` 套件中的
+    cue-omni-reader skill（作者自述「may bill」）。
+    純文件變更但引入對外部未審查套件的信任建議，**留給維護者決定**是否採用，不阻塞其他項目。
+  - #213 dependabot 群組更新 `codeql-action` pin——只動上游自己的 `codeql.yml`，本 fork 不共用
+    該檔案，延續 3398180 的判斷。
+- **記錄備查，無需動作**：issue #205（OpenClaw 相容性請求，即 #209 的動機，判斷同上）、issue
+  #207（dependency preflight 缺陷，已由採用的 #208 解決）。
+
+**PR／issue 水位**：`reviewed_pr_through` 202 → 216；`reviewed_issue_through` 192 → 207。
+commit 水位：`9c207f87` → `a6cad12dee07a7700068e2aa51cba871ef3b5349`（upstream/master tip）。
+
 ## 2026-08-31：採用俄文章節標題，拒絕未分割的 host／governance 擴張
 
 **決定**：以最小 regex 與回歸測試採用上游 PR #199 的 `Глава N` 偵測；#200–#202 不採用，

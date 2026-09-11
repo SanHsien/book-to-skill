@@ -32,6 +32,37 @@ Baseline 代表「已審查」，不代表「全部已合併」。
 README 衝突的解法：上游新內容併進 `README.en.md`，再把對應段落翻進 `README.md`。
 第三語系檔（例如 `README.ru.md`）略過，不要合進本 fork。
 
+## 2026-09-11：commit 增量 6 筆 + PR #203–#216 + issue #205/#207 判讀
+
+`check_upstream_updates.py --strict` 列出 commit 水位 `9c207f8` 之後 6 筆、PR 水位 `#202`
+之後 12 筆（含已落地為 commit 的 #203／#204）、issue 水位 `#192` 之後 2 筆。逐筆判讀，理由
+見 `docs/DECISIONS.md` 2026-09-11 條目；本節只記結論表與水位。
+
+| commit / PR / issue | 決定 | 一句理由 |
+| --- | --- | --- |
+| `907be50` (#202 落地) | 不採用 | Hermes host 擴張，判斷不變（2026-08-31） |
+| `67f52fd` (#203 落地) | 不採用，留給維護者 | 新增必要相依 `pdf-inspector`，供應鏈信任決策 |
+| `4f1ca4d` (#200 落地) | 不採用 | 本 fork 沒有 `tests/evals/`，不跑那套 eval |
+| `4117064` (#199 落地) | **已涵蓋** | 本 fork 已用最小實作採用（`5f523d8`），regex／測試等價 |
+| `3398180` (#198 落地) | 不採用 | 本 fork CI workflow 已分岔，不共用檔案 |
+| `a6cad12` (#204 落地) | 不採用 | 新增第三語系 README，違反既有語言政策 |
+| #208（open） | **採用**（cherry-pick `b3891d8`） | 修到本 fork 實測重現的缺陷：PDF/HTML preflight 沒有尊重 `any_of_modules` |
+| #214（open） | 延後至合併 | 缺口是真的，但 `ai_directive`／`raw_url`／`encoded_blob` 讓普通章節 exit 1（實測 6 筆誤報），會擋住幾乎所有產出 |
+| #206、#212（open） | 延後至合併 | 希臘文／坦米爾文章節偵測，非缺陷，等上游合併 |
+| #209、#216（open） | 延後至合併 | OpenClaw／Opencode host discovery，與 Hermes 同形狀，合併後預期同樣不採用 |
+| #210（open） | 延後至合併 | project-local scope 選擇，product-direction，SKILL.md host 段落已分岔 |
+| #211（open） | 延後至合併，建議優先複審 | Step 9.5b grounding gate，設計完整但是新功能不是缺陷 |
+| #213（open） | 延後至合併 | dependabot 只動上游自己的 `codeql.yml`，本 fork 不共用該檔 |
+| #215（open） | 不採用，留給維護者 | 推薦安裝未審查第三方 skill（`cue-omni-reader`），供應鏈信任決策 |
+| issue #205 | 備查 | OpenClaw 相容性請求，動機同 #209 |
+| issue #207 | 已解決 | 依賴 preflight 缺陷，由採用的 #208 修正 |
+
+### 水位
+
+- commit：`a6cad12dee07a7700068e2aa51cba871ef3b5349`（upstream/master tip，2026-09-01）
+- PR：**#216**（含 open）；issue：**#207**
+- 三者都記在 `tools/upstream_baseline.json`
+
 ## 2026-08-31：PR #199–#202 判讀
 
 | PR | 決定 | 理由 |
