@@ -105,7 +105,7 @@ def test_optional_document_parsers_have_security_version_floors():
     """Untrusted documents resolve to reviewed versions, with honest Python markers."""
     pyproject = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
     for requirement in (
-        '"pypdf==6.17.0"',
+        '"pypdf==6.18.1"',
         '"pdfminer.six==20260107; python_version >= \'3.10\'"',
         '"python-docx==1.2.0"',
         '"docling==2.126.0; python_version >= \'3.10\'"',

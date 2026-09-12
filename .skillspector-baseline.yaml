@@ -156,11 +156,11 @@ fingerprints:
   rule_id: SC4
   file: requirements-security.txt
   reason: 已人工審查：SkillSpector 以 SanHsien fork 的精確 Git commit 釘定；OSV 無法從 PEP 508 VCS URL 推導版本而以名稱查詢舊漏洞，並不代表該 commit 含未修補版本。
-- hash: sha256:52d27489201e2ab643ab34e961656cb86b01bbcd563f2a9d78222dfde82645c6
+- hash: sha256:060531d9d420fc2b582e082ec9e3c80ac06f1429aa81c15262f0b21bf50d0cb5
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：文件明確禁止推送 upstream，並要求只推 SanHsien origin；這是安全邊界說明，不是參數濫用指令。
-- hash: sha256:766e9e84fdeea0954e3e8964a00781307a7659eade055e13b227bb9e1ce61b0a
+- hash: sha256:6c758800987162492797017f0d632947ecb89227a4a8280fb8d2621de93e523b
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：同一段禁止推送 upstream 的 normalized view；沒有執行路徑，且保留此文字能防止誤推母 repo。

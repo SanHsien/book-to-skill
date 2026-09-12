@@ -177,6 +177,12 @@ runner 因而仍在預設 60 秒 graph budget 停止；本機的 editable SkillS
 讓先前本機 gate 無法揭露差異。新 revision 已確認位於 `SanHsien/SkillSpector` 遠端 main，且
 該 SHA 的 CI、CodeQL、Scorecard 全綠。
 
+**2026-09-12 pypdf 前進**：`pypdf==6.17.0` → `6.18.1`（上方決定句保留原始版本作為紀錄）。
+6.18.0 限制 indirect object token 長度，6.18.1 限制 TrueType／Type1 字型 `/Widths` 條目數與
+`parse_bfchar` token 長度，都是處理不可信 PDF 的 DoS 上限，正是本 pin 要跟的東西。6.18.0 要求
+覆寫過預設上限的使用者改用新設定方式；本 repo 沒有覆寫任何 pypdf 上限。全測試通過，並以手工
+兩頁 PDF 經 `extract_with_pypdf` 與 `count_pages` 實際抽出兩個章節標題。
+
 **產品文字調整**：只把會讓 bounded shell parser 把 Markdown code span 誤當成未閉合
 shell 語句的路徑表示改為等義 HTML code 或一般敘述；轉換流程、覆寫確認與發布邊界不變。
 發布說明中的 `npx skills` 固定為 npm 當前查得的 `skills@1.5.23`，避免未鎖版 CLI
