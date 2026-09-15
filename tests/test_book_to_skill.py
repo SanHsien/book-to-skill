@@ -677,6 +677,31 @@ class TestDetectStructure:
         assert _chapter_number("Главная страница") is None
         assert _chapter_number("Глава") is None
 
+    def test_detects_greek_chapters_and_rejects_prose(self):
+        """`Κεφάλαιο N`, including the all-caps form that drops the accent."""
+        from book_to_skill.utils import _chapter_number
+
+        text = (
+            "Κεφάλαιο 1 Εισαγωγή\nπεριεχόμενο\n"
+            "## ΚΕΦΑΛΑΙΟ 2 Μέθοδοι\nπεριεχόμενο"
+        )
+        assert detect_structure(text)["chapters_detected"] == 2
+        assert _chapter_number("Το κεφάλαιο αυτό εξετάζει") is None
+        assert _chapter_number("Κεφάλαιο") is None
+
+    def test_detects_tamil_chapters_and_rejects_prose(self):
+        """`அத்தியாயம் N` with Arabic or Tamil digits; inflected stems do not match."""
+        from book_to_skill.utils import _chapter_number
+
+        text = (
+            "அத்தியாயம் 1 அறிமுகம்\nஉள்ளடக்கம்\n"
+            "## அத்தியாயம் ௨ முறைகள்\nஉள்ளடக்கம்"
+        )
+        assert detect_structure(text)["chapters_detected"] == 2
+        assert _chapter_number("அத்தியாயம் ௩") == 3
+        assert _chapter_number("அத்தியாயத்தில் உள்ளது") is None
+        assert _chapter_number("அத்தியாயம்") is None
+
     # ── Korean chapter headings ────────────────────────────────────────────
 
     def test_korean_je_n_jang(self):

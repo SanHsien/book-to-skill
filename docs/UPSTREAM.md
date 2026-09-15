@@ -32,6 +32,28 @@ Baseline 代表「已審查」，不代表「全部已合併」。
 README 衝突的解法：上游新內容併進 `README.en.md`，再把對應段落翻進 `README.md`。
 第三語系檔（例如 `README.ru.md`）略過，不要合進本 fork。
 
+## 2026-09-15：commit 增量 7 筆 + PR #218–#226 + issue #217/#219/#221 判讀
+
+| commit / PR / issue | 決定 | 一句理由 |
+| --- | --- | --- |
+| `7e07953`（#206 落地） | **採用**（最小重做） | 希臘文 `Κεφάλαιο N`；先前「等合併」的觸發條件成立，fork 的 `utils.py` 已分岔故不 cherry-pick |
+| `0ad050e`（#212 落地） | **採用**（最小重做） | 坦米爾文 `அத்தியாயம் N`，沿用既有的數字重映射寫法 |
+| `349dc43`（#125 落地） | **採用**（最小重做＋Windows 修正） | 個人安裝預設改跨 agent 根目錄；Claude Code 連結在 Windows 改用 junction（symlink 實測需管理員），不引用 Hermes row |
+| `ecf99ee`（#208 落地） | 已涵蓋 | 本 fork 已於 `f455862` 採用，差異只剩上游的 pdf-inspector 相依群組 |
+| `01f8a74`（#218 落地） | 不適用 | 只改 `pdf_inspector_integration.py`，本 fork 未引進該模組 |
+| `ecf1860`、`59c4ac8`（#213／#226） | 不引用 | dependabot 只動上游自己的 `codeql.yml`，本 fork workflow 已分岔 |
+| #220（open） | 不適用 | 同 #218，pdf-inspector 專屬 |
+| #222（open） | **缺陷已驗證，另案採用** | 乾淨安裝副本跑一次工具就留下兩個 `__pycache__`；修法是入口腳本設 `sys.dont_write_bytecode` |
+| #223、#224、#225（open） | 延後至合併 | 泰盧固文偵測、re-run guard、evals 計分；後兩者分別是新功能與本 fork 不跑的 eval |
+| issue #217、#219 | 不適用 | pdf-inspector 的 metadata 缺陷 |
+| issue #221 | 備查 | 上游公告第二個冒名 repo 下架，本 fork `SECURITY-NOTICE.md` 已說明來源辨識 |
+
+### 水位
+
+- commit：`59c4ac8`（upstream/master tip，2026-09-14）
+- PR：**#226**；issue：**#221**
+- 三者都記在 `tools/upstream_baseline.json`；逐筆理由見 `docs/DECISIONS.md` 2026-09-15 條目
+
 ## 2026-09-11：commit 增量 6 筆 + PR #203–#216 + issue #205/#207 判讀
 
 `check_upstream_updates.py --strict` 列出 commit 水位 `9c207f8` 之後 6 筆、PR 水位 `#202`

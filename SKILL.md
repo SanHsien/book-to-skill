@@ -9,6 +9,9 @@ Transform written knowledge into actionable agent skills by extracting structure
 
 ## Host compatibility
 
+- Generated skills default to the cross-agent personal root `~/.agents/skills`, which
+  Copilot CLI, Amp and Codex discover natively; Claude Code scans `~/.claude/skills`, so
+  Step 10 links the skill in from there (a junction on Windows, a symlink elsewhere).
 - Compatible skill roots: GitHub Copilot CLI (`~/.copilot/skills`, `~/.agents/skills`,
   `.github/skills`, `.claude/skills`, `.agents/skills`), Amp (`.agents/skills`,
   `~/.config/agents/skills`, `~/.config/amp/skills`), Claude Code (`~/.claude/skills`).
@@ -65,9 +68,9 @@ Four paths available. Route based on what the user asks:
 
 This converter can run from multiple skill systems. When looking for this converter's helper script or writing the generated book skill, prefer these locations in order:
 
-1. GitHub Copilot CLI personal skills: `~/.copilot/skills/`
-2. Cross-agent personal skills (Copilot, Amp, Codex): `~/.agents/skills/`
-3. Claude Code personal skills: `~/.claude/skills/`
+1. Cross-agent personal skills (Copilot, Amp, Codex; the default for generated skills): `~/.agents/skills/`
+2. GitHub Copilot CLI personal skills: `~/.copilot/skills/`
+3. Claude Code personal skills: `~/.claude/skills/` (generated skills are linked in from the cross-agent root)
 4. Project-local Copilot skills: `.github/skills/`
 5. Project-local Claude skills: `.claude/skills/`
 6. Project-local Amp / Copilot skills: `.agents/skills/`
@@ -303,23 +306,25 @@ Otherwise, propose two options and let the user choose:
 
 Default to author-concept format if the book has a strong methodological identity.
 
-Choose the destination skill root (`SKILLS_HOME`). Probe the user's filesystem for existing skill homes and pick by **the host the user is running in**:
+Choose the destination skill root (`SKILLS_HOME`). For **personal** (user-level) installs, default to the cross-agent root `~/.agents/skills` — one physical copy that every supported host reaches, natively or through a link:
 
-| Host agent | Personal skill root (probe in order) | Project-local root |
+| Host agent | Personal skill root | Project-local root |
 |---|---|---|
-| **GitHub Copilot CLI** | `~/.copilot/skills` → `~/.agents/skills` | `.github/skills` → `.claude/skills` → `.agents/skills` |
-| **Amp** | `~/.agents/skills` → `~/.config/agents/skills` → `~/.config/amp/skills` | `.agents/skills` |
-| **Claude Code** | `~/.claude/skills` | `.claude/skills` |
+| **GitHub Copilot CLI** | `~/.agents/skills` (discovered natively) | `.github/skills` → `.claude/skills` → `.agents/skills` |
+| **Amp** | `~/.agents/skills` (discovered natively) | `.agents/skills` |
+| **Claude Code** | `~/.agents/skills` + a link at `~/.claude/skills/<skill_name>` | `.claude/skills` |
 | **OpenAI Codex** | `~/.agents/skills` (discovered natively; follows symlinks) | `.agents/skills` |
 
 Selection rules:
-1. If **exactly one** of the host's candidate roots exists on disk, reuse that existing root directly.
-2. If **none** exist (fresh machine), ask the user which root to create — present the host-appropriate options and remember the choice for the session. Do not silently pick.
-3. If the user explicitly asked for project-local output, prefer the project-local row.
-4. If you cannot identify the host, ask: "Which agent are you running this in — GitHub Copilot CLI, Amp, Codex, or Claude Code?"
+1. Personal install: set `SKILLS_HOME` to `~/.agents/skills` (create it if missing). One exception, so the default does not invent a convention in someone else's house: if `~/.agents/skills` does not exist **and** the host's private root already holds skills, use the private root instead and say why in the report.
+2. **Claude Code does not scan `~/.agents/skills`** — Step 10 links the skill into `~/.claude/skills/<skill_name>` after generation.
+3. If the user explicitly asks for a host-private root (`~/.copilot/skills`, `~/.claude/skills`, `~/.config/agents/skills`, `~/.config/amp/skills`), honor it and skip the link.
+4. If the user explicitly asked for project-local output, use the project-local row for their host.
+5. If the choice requires knowing the host (project-local output or the Claude Code link) and you cannot identify it, ask: "Which agent are you running this in — GitHub Copilot CLI, Amp, Codex, or Claude Code?"
 
 Set `SKILLS_HOME` to the selected root and check whether the selected skill directory already exists.
-If it does, prompt the user to choose:
+On Claude Code, also check whether `~/.claude/skills/<skill_name>` exists as a **real directory** (not a link) — an earlier install may live there. If it does, offer to migrate it (move the directory into `~/.agents/skills/`, then put the link at the original path) before continuing.
+If the skill directory already exists, prompt the user to choose:
 1. **Update / Fold-in** (Mode 4) — integrate new files/content into the existing skill components.
 2. **Overwrite** — delete and regenerate the skill from scratch.
 3. **Rename** — append `-2` or use a different custom slug.
@@ -567,6 +572,53 @@ else:
     print("Skipped cleanup: could not read the workdir from", meta)
 PY
 ```
+
+### Link the skill into Claude Code
+
+When the host is Claude Code and `SKILLS_HOME` is `~/.agents/skills` (the default personal install), expose the skill to Claude Code with a link — Claude Code only scans `~/.claude/skills`. Skip this when the user chose a host-private or project-local root (Step 5, rules 3–4).
+
+A real directory already sitting at the link path must never be overwritten or nested into: `ln -sfn` into an existing directory puts the link *inside* it (`~/.claude/skills/<skill_name>/<skill_name>`) and Claude Code keeps loading the stale copy. If the user declined the Step 5 migration, skip the link and say so.
+
+POSIX hosts:
+
+```bash
+mkdir -p "$HOME/.claude/skills"
+LINK="$HOME/.claude/skills/<skill_name>"
+TARGET="$HOME/.agents/skills/<skill_name>"
+if [ -d "$LINK" ] && [ ! -L "$LINK" ]; then
+  CLAUDE_STATUS="skipped-realdir"
+else
+  ln -sfn "$TARGET" "$LINK" 2>/dev/null || true
+  if [ -L "$LINK" ] && [ "$(readlink "$LINK")" = "$TARGET" ]; then
+    CLAUDE_STATUS="linked"
+  elif [ -e "$LINK" ]; then
+    CLAUDE_STATUS="copy"
+  else
+    CLAUDE_STATUS="absent"
+  fi
+fi
+```
+
+Windows: use a **directory junction**, not a symlink. Measured on Windows 11 without Developer Mode, `New-Item -ItemType SymbolicLink` fails with "此作業需要系統管理員權限" (this operation requires administrator privileges), while a junction is created by an ordinary user and Claude Code follows it. `ln -s` under Git Bash/MSYS may silently copy instead of link, so do not use it here.
+
+```powershell
+$link = Join-Path $HOME ".claude\skills\<skill_name>"
+$target = Join-Path $HOME ".agents\skills\<skill_name>"
+New-Item -ItemType Directory -Force -Path (Split-Path -Parent $link) | Out-Null
+$existing = Get-Item -LiteralPath $link -Force -ErrorAction SilentlyContinue
+if ($existing -and -not $existing.LinkType) {
+    $claudeStatus = "skipped-realdir"
+} else {
+    if ($existing) { Remove-Item -LiteralPath $link -Force -Recurse }
+    New-Item -ItemType Junction -Path $link -Target $target -ErrorAction SilentlyContinue | Out-Null
+    $now = Get-Item -LiteralPath $link -Force -ErrorAction SilentlyContinue
+    if ($now -and $now.LinkType -and $now.Target -contains $target) { $claudeStatus = "linked" }
+    elseif ($now) { $claudeStatus = "copy" }
+    else { $claudeStatus = "absent" }
+}
+```
+
+**Read the link back before reporting anything about it.** The link is a claim until the filesystem confirms it: fill the "Discoverable by" line from the status variable, never from "the command was issued". A missing link is not a failure of the run — the skill exists at the cross-agent root and every other host still finds it. The honest report is "written to `~/.agents/skills/<skill_name>`; Claude Code will not see it until the link exists", not an abort.
 
 Then report to the user:
 

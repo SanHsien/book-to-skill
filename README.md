@@ -70,7 +70,7 @@
 
 ## 會產出什麼
 
-執行 `/book-to-skill your-book.pdf`（也可以是資料夾、glob 或檔案清單）後，會在 Agent 的 skills 目錄寫入完整技能（Copilot CLI：`~/.copilot/skills/<slug>/`；Amp／跨 Agent：`~/.agents/skills/<slug>/`；Claude Code：`~/.claude/skills/<slug>/`）：
+執行 `/book-to-skill your-book.pdf`（也可以是資料夾、glob 或檔案清單）後，會在跨 Agent 的使用者層目錄 `~/.agents/skills/<slug>/` 寫入完整技能——同一份副本，Copilot CLI、Amp 與 Codex 都能原生找到。在 Claude Code 下執行時，轉換器會再於 `~/.claude/skills/<slug>/` 建立連結（Windows 用 directory junction，其他平台用 symlink）並讀回驗證；連結失敗不算轉換失敗，報告會照實說明。要裝進單一 host 或專案目錄時仍可指定：
 
 | 檔案 | 用途 | 大約大小 |
 |------|------|----------|

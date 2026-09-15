@@ -60,7 +60,7 @@ rules:
   message: '*subprocess*'
   reason: 已人工審查：測試 helper 以 shell false 的固定 argv 陣列呼叫 git，輸入為測試常數且有 30 秒 timeout，不拼接 shell。
 fingerprints:
-- hash: sha256:7ed79c358c738d078e6ed102992dff59d87c91b85d662aa6dc16d28e11578737
+- hash: sha256:a44f4277eb9985a53a9aa12fb2862f4265d9c95eb968fb3b9916eea1dc596488
   rule_id: AE4
   file: tests/test_book_to_skill.py
   reason: 已人工審查：測試刻意含 Unicode 正規化與控制字元樣本以驗證 sanitizer，不含偽裝指令或機密。
@@ -120,17 +120,13 @@ fingerprints:
   rule_id: AST4
   file: tools/stage_scan_input.py
   reason: 合理功能：自我掃描 gate 的暫存工具以 shell false 的 argv 陣列呼叫 git，只執行唯讀的 ls-files 取得檔案清單與 index 行尾；子命令為程式內常數，repo 路徑來自 dev_check.ps1 自身位置。
-- hash: sha256:02f158f79880c1b75c72d930462f91d98ab738a962e7b3778b78a1740307e614
+- hash: sha256:2510ab074dc57f522b9ac00d74068fa61e54bfdad128b062c7fb8e26298b015c
   rule_id: LP3
   file: SKILL.md
   reason: 已人工審查：allowed-tools 刻意不寫死以維持多 host 相容；可見文件只宣告 shell 與檔案讀寫需求，各 host 仍在實際呼叫時執行授權。
-- hash: sha256:9359faccd14628d4b1c69f8720247e3c82c396d0c6780358c6c1c3bf4517355a
+- hash: sha256:ce797014e39fc081bb7f9b44451cc26eb45ba5d80cb2b861e222377b66dab33b
   rule_id: AS3
   file: README.en.md
-  reason: 自我指涉：README／docs/install.md 列出各 agent host 的 skills 目錄路徑（~/.claude/skills/ 等）是安裝說明，不是執行期間列舉或讀取其他已安裝 skill 的內容。
-- hash: sha256:68c3369ac02d26825295e7c029b2753c37a841fbe3689874cf5f0c0dbb5c4035
-  rule_id: AS3
-  file: README.md
   reason: 自我指涉：README／docs/install.md 列出各 agent host 的 skills 目錄路徑（~/.claude/skills/ 等）是安裝說明，不是執行期間列舉或讀取其他已安裝 skill 的內容。
 - hash: sha256:35a6296c92edcfa9138163f9ac755c2a068790a4b73be8f1621ead1bff6e0144
   rule_id: AS3
@@ -156,11 +152,11 @@ fingerprints:
   rule_id: SC4
   file: requirements-security.txt
   reason: 已人工審查：SkillSpector 以 SanHsien fork 的精確 Git commit 釘定；OSV 無法從 PEP 508 VCS URL 推導版本而以名稱查詢舊漏洞，並不代表該 commit 含未修補版本。
-- hash: sha256:060531d9d420fc2b582e082ec9e3c80ac06f1429aa81c15262f0b21bf50d0cb5
+- hash: sha256:d741a8d5759071b88bb35708a9910ba50aba772cd9bdef4f6cda214926450ddb
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：文件明確禁止推送 upstream，並要求只推 SanHsien origin；這是安全邊界說明，不是參數濫用指令。
-- hash: sha256:6c758800987162492797017f0d632947ecb89227a4a8280fb8d2621de93e523b
+- hash: sha256:3a5f690046cb3dbe87558af4d4023a22a88bca0b64e6ab8459628de6153b6880
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：同一段禁止推送 upstream 的 normalized view；沒有執行路徑，且保留此文字能防止誤推母 repo。
@@ -172,3 +168,15 @@ fingerprints:
   rule_id: YR4
   file: tests/test_scan_generated_skill.py
   reason: 已人工審查：測試組合 prompt override、authority mutation、外傳與 Unicode 隱藏字元，目的是驗證 generated-skill scanner 全部攔截。
+- hash: sha256:ba0a9686b239ce2641eb4ac006af8aa583d4595416a058a99db9256f9bbeed9a
+  rule_id: AS3
+  file: SKILL.md
+  reason: 自我指涉：Step 10 的 `mkdir -p "$HOME/.claude/skills"` 是為產出的 skill 建立安裝目錄並放入連結，不是執行期列舉或讀取其他已安裝 skill 的內容。
+- hash: sha256:c639501a2ee56a4546d14dfa329c510cf295679adc3ec0c91bbbd1cef4200613
+  rule_id: RA2
+  file: SKILL.md
+  reason: 誤判：RA2 的持久化樣式比對 create／mkdir 後接 `~/.` 開頭的隱藏目錄，而 Step 5 這段講的是個人安裝預設落在跨 agent 根目錄 `~/.agents/skills`、不存在時才建立。這是安裝位置說明，沒有 cron、開機腳本或跨 session 狀態。
+- hash: sha256:40bc5af519fc32fb8298ffb9d47cd86c44acb9a1299a1cffcd9a817c99f7f663
+  rule_id: RA2
+  file: SKILL.md
+  reason: 誤判：同一條持久化樣式在 Step 10 命中建立 `~/.claude/skills` 連結目錄的說明。連結只是讓 Claude Code 看得到已安裝的 skill，使用者可自行刪除；沒有排程、開機項目或背景行程。

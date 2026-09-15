@@ -1,5 +1,54 @@
 # 維護決策
 
+## 2026-09-15：批次審查 — 採用兩種章節語言與跨 agent 安裝預設，Windows 改用 junction
+
+commit 水位 `a6cad12` → `59c4ac8`；PR 水位 216 → 226；issue 水位 207 → 221。
+
+**採用（最小重做）：希臘文 `Κεφάλαιο N` 與坦米爾文 `அத்தியாயம் N` 章節偵測**（上游 `7e07953`／
+`0ad050e`，PR #206／#212）。2026-09-11 把這兩筆記為「等上游合併」，現在已合併，觸發條件成立。
+本 fork 的 `book_to_skill/utils.py` 與上游已大幅分岔（`_EXPLICIT_CHAPTER` 與 `_HEADING_TAIL`
+兩處實質不同），cherry-pick 會整檔衝突，因此比照 2026-08-31 俄文的做法自行加入 pattern 與
+dispatch：希臘文用 `κεφ[άα]λαιο`（全大寫 `ΚΕΦΑΛΑΙΟ` 會丟掉重音，單靠 case folding 接不起
+Ά↔Α），坦米爾文沿用 Devanagari／Bengali 的數字重映射。兩者都要求數字，避免把散文中的
+「κεφάλαιο」（也有「資本」之意）或屈折形「அத்தியாயத்தில்」判成標題。
+
+**採用（最小重做＋Windows 修正）：產生的 skill 預設落在 `~/.agents/skills`**（上游 `349dc43`，
+PR #125）。個人安裝改為跨 agent 根目錄一份副本，Copilot CLI／Amp／Codex 原生找得到；Claude Code
+不掃該目錄，所以 Step 10 建立連結。**上游用 `ln -sfn`，並把 junction 寫成未驗證的 Windows
+提示——本 fork 把它驗成事實並改寫**：在本機 Windows 11（未開 Developer Mode）實測，
+`New-Item -ItemType SymbolicLink` 回「此作業需要系統管理員權限」而失敗，directory junction 則由
+一般使用者建立成功，Claude Code 也確實跟隨（本機 `~/.claude/skills/huashu-design` 現況就是
+junction）。因此 SKILL.md 的 Windows 分支改用 `New-Item -ItemType Junction`，並保留上游最重要的
+兩條規則：連結路徑若是**真實目錄**就跳過（`ln -sfn` 會把連結塞進該目錄，讓 host 繼續載入舊副本），
+以及**讀回驗證後才報告**，連結失敗不算轉換失敗。實測四種情境（新建、重跑、讀回、遇真實目錄）
+都得到預期狀態。上游同一 commit 保留的 Hermes row 不引用——本 fork 已於 2026-08-31 移除 Hermes。
+
+**已涵蓋**：`ecf99ee`（PR #208 落地）本 fork 已於 `f455862` 採用，逐行比對後兩邊差異只剩上游的
+pdf-inspector 相依群組。
+
+**不適用**：`01f8a74`（PR #218）與 PR #220 都只改 `book_to_skill/pdf_inspector_integration.py`，
+本 fork 未引進 pdf-inspector（2026-09-11 留給維護者的供應鏈決定），沒有對應檔案。
+
+**不引用**：`ecf1860`、`59c4ac8`（PR #213／#226，dependabot 只動上游自己的 `codeql.yml`）——本
+fork 的 workflow 已分岔且自有 pin 慣例，由 `tools/check_dependency_freshness.py` 各自追蹤。
+
+**延後至合併**：PR #223（泰盧固文章節偵測，與本批兩筆同型，但仍未合併）、#224（re-run guard，
+改 SKILL.md 流程契約的新功能）、#225（evals 計分，本 fork 不跑那套 eval）。
+
+**已驗證缺陷、下一步採用**：PR #222（部署目錄殘留 `__pycache__`）。實測本 fork 同樣中招：把
+`git archive HEAD` 展開成一份乾淨的安裝副本後，只跑一次 `tools/scan_generated_skill.py`，
+`book_to_skill/__pycache__` 與 `book_to_skill/parsers/__pycache__` 就出現在被安裝的目錄裡。
+修法是在各入口腳本設 `sys.dont_write_bytecode = True` 並加回歸測試，另案處理以免與本次的
+章節與安裝路徑變更混在同一個提交。
+
+**issue**：#217／#219 都是 pdf-inspector 的 metadata 缺陷，本 fork 無該模組，不適用；#221 是上游
+公告第二個冒名 repo 遭下架，備查——本 fork 的 `SECURITY-NOTICE.md` 已說明來源辨識方式，無需動作。
+
+**fingerprint**：SKILL.md、README、`tests/test_book_to_skill.py` 都被改到，重產時 3 筆漂移、
+1 筆消失（README.md 的 AS3：列出各 host 路徑的那句已改寫）、3 筆新增並逐筆審查後加入理由——
+Step 10 建立 Claude Code 連結目錄那行觸發的 AS3，以及 RA2 持久化樣式在「建立以點號開頭的家目錄
+子目錄」上的兩次誤判（安裝位置說明，沒有排程、開機項目或跨 session 狀態）。
+
 ## 2026-09-11：上游批次審查，採用一個可重現的缺陷修正，其餘延後或略過
 
 **決定**：
