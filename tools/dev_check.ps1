@@ -117,13 +117,16 @@ function Invoke-SkillSpectorSelfScan {
     # variable since SkillSpector 2.11.1, and upstream rejects 0, negatives and
     # non-finite values with a warning and falls back to its 600-second default -- so
     # "0" would silently mean 600 s. A large positive value means the same thing under
-    # every build. SKILLSPECTOR_MAX_STATIC_SECONDS (per artifact, default 30 s) exists
-    # only in the SanHsien fork and takes the same value; builds without it ignore it,
-    # which is the previous behaviour rather than a silent weakening.
-    $previousStaticBudget = $env:SKILLSPECTOR_MAX_STATIC_SECONDS
+    # every build. SKILLSPECTOR_MAX_STATIC_ANALYSIS_SECONDS_PER_ARTIFACT (per artifact)
+    # is upstream's variable since #522, default 300 s, positive finite values only,
+    # and takes the same value. It replaced the SanHsien fork's
+    # SKILLSPECTOR_MAX_STATIC_SECONDS on 2026-09-17. A build that predates it ignores
+    # the variable and keeps its own default; a scan that then runs out of time is
+    # still incomplete and fails this gate rather than passing.
+    $previousStaticBudget = $env:SKILLSPECTOR_MAX_STATIC_ANALYSIS_SECONDS_PER_ARTIFACT
     $previousWorkflowBudget = $env:SKILLSPECTOR_MAX_WORKFLOW_SECONDS
     $previousPythonHashSeed = $env:PYTHONHASHSEED
-    $env:SKILLSPECTOR_MAX_STATIC_SECONDS = "86400"
+    $env:SKILLSPECTOR_MAX_STATIC_ANALYSIS_SECONDS_PER_ARTIFACT = "86400"
     # The whole repository is scanned as one bundle, so the graph-wide budget is the
     # binding one (60 s before SkillSpector 2.11.1, 600 s after): once it expires every
     # remaining file is recorded as runtime_limit with no findings, which reads as a
@@ -159,7 +162,7 @@ function Invoke-SkillSpectorSelfScan {
         Write-Host "SkillSpector self-scan: no new findings."
     } finally {
         Remove-Item -Recurse -Force -LiteralPath $stageDir -ErrorAction SilentlyContinue
-        $env:SKILLSPECTOR_MAX_STATIC_SECONDS = $previousStaticBudget
+        $env:SKILLSPECTOR_MAX_STATIC_ANALYSIS_SECONDS_PER_ARTIFACT = $previousStaticBudget
         $env:SKILLSPECTOR_MAX_WORKFLOW_SECONDS = $previousWorkflowBudget
         $env:PYTHONHASHSEED = $previousPythonHashSeed
     }

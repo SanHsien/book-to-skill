@@ -64,35 +64,35 @@ fingerprints:
   rule_id: AE4
   file: tests/test_book_to_skill.py
   reason: 已人工審查：測試刻意含 Unicode 正規化與控制字元樣本以驗證 sanitizer，不含偽裝指令或機密。
-- hash: sha256:24c041b2bcc6a3c9ae8fcdac527119e4e66ffb0c9f5c34bf39b120aee2d4e2e3
+- hash: sha256:84f7dc4fce7c0bd708909bdee24aa251965e4f0f1f3f0ec758c48c5fad93e070
   rule_id: AST4
   file: book_to_skill/dependencies.py
   reason: 合理功能：本工具的核心功能就是呼叫外部轉檔程式（pdftotext、ebook-convert）進行文件解析，以及內部維運腳本呼叫 git／gh 檢查上游狀態；參數皆為固定字面值或程式內驗證過的路徑，不會拼接任意使用者輸入。
-- hash: sha256:39ff9940cc3a74b412568215df5a2a319ad94926e6faf12d887c5b4b55952beb
+- hash: sha256:ef71df2e232156cc627a3713794723a5ccf9bedc8528e46f133e6085ac625a1b
   rule_id: AST4
   file: book_to_skill/parsers/calibre.py
   reason: 合理功能：本工具的核心功能就是呼叫外部轉檔程式（pdftotext、ebook-convert）進行文件解析，以及內部維運腳本呼叫 git／gh 檢查上游狀態；參數皆為固定字面值或程式內驗證過的路徑，不會拼接任意使用者輸入。
-- hash: sha256:4b1f888a6852a6006a6f5020bcdba0b4e32fc899b3712e3e4b35354f67afb0c7
+- hash: sha256:7b307d2c15a32f562bd2ba2a07838e105d0c8b1b5603979e8fd97432c0c922a3
   rule_id: AST4
   file: book_to_skill/parsers/pdf.py
   reason: 合理功能：本工具的核心功能就是呼叫外部轉檔程式（pdftotext、ebook-convert）進行文件解析，以及內部維運腳本呼叫 git／gh 檢查上游狀態；參數皆為固定字面值或程式內驗證過的路徑，不會拼接任意使用者輸入。
-- hash: sha256:74505c84bb7568e7c03cbc45b88866ba0e2c2fe73350a1de1df40530ec625241
+- hash: sha256:91df00b5b72c32ff80dbc1992803f60533d52c9b15c79d8806ec49cf50552277
   rule_id: AST4
   file: book_to_skill/parsers/pdf.py
   reason: 合理功能：本工具的核心功能就是呼叫外部轉檔程式（pdftotext、ebook-convert）進行文件解析，以及內部維運腳本呼叫 git／gh 檢查上游狀態；參數皆為固定字面值或程式內驗證過的路徑，不會拼接任意使用者輸入。
-- hash: sha256:15bc94fba5660fda5177e8b50c92f95f6fe106ec9b473555e8e979db1103e00e
+- hash: sha256:14c5625a709271276fdb686a5514dafc407dfc642a7d185c164e4703b1785c39
   rule_id: AST4
   file: book_to_skill/parsers/pdf.py
   reason: 合理功能：本工具的核心功能就是呼叫外部轉檔程式（pdftotext、ebook-convert）進行文件解析，以及內部維運腳本呼叫 git／gh 檢查上游狀態；參數皆為固定字面值或程式內驗證過的路徑，不會拼接任意使用者輸入。
-- hash: sha256:366f0b322625ff8653ab8d7b3118e08a854bb75c9f58a6a970e43037c1deb2a1
+- hash: sha256:04788d7908a5fd36c706f07e41d55cadf99686ec9cf5fbcdbd97c96c4e1307a1
   rule_id: AST3
   file: tests/test_discovery_tax.py
   reason: 自我指涉：tests/test_discovery_tax.py 內的 __import__("re") 是測試輔助程式碼的行內寫法慣例，模組名稱是程式內寫死的常數，非外部輸入。
-- hash: sha256:d8e2e75efd5c52002b241685535628e2e0776d609ea95fc52c0f9c420457b15a
+- hash: sha256:9ea2f8ce65c8f0217ae52ed5ac14dfaab672922bda5da7332a1cdccd19ddfa3b
   rule_id: AST7
   file: tests/test_html_block_boundaries.py
   reason: 自我指涉：tests/test_html_block_boundaries.py 使用 pytest parametrize 搭配 getattr 存取測試類別上固定的屬性名稱（皆為程式內寫死的常數字串），非任意屬性存取。
-- hash: sha256:f9989acecbe850f287ef328e291ade434fe4ebcc56afdca39b7e6a5a27129d48
+- hash: sha256:19347891cf9ec296828978254c76ac6e139e77c5332d41c14546f8faa468fda1
   rule_id: AST4
   file: tests/test_workdir_lock.py
   reason: 自我指涉：測試啟動一個固定執行 30 秒的 Python 子程序，驗證 workdir 鎖能辨識仍存活的不同 PID；命令與參數皆為測試內常數，且 finally 會終止並等待子程序。
@@ -100,15 +100,15 @@ fingerprints:
   rule_id: AST4
   file: tests/test_stage_scan_input.py
   reason: 自我指涉：測試 helper 以 shell false 的 argv 陣列呼叫 git，只在 pytest tmp_path 建立的拋棄式 repo 內執行 init／config／add／commit，參數皆為測試常數。
-- hash: sha256:308182ee49f43f17e967d4d3400dd8fe726c86f52c26ead5a4c52785063d565b
+- hash: sha256:5ccfc92c48778087f19ac43ff54d9402dbb26d11ca6d01f32b0872a123775a0a
   rule_id: AST4
   file: tools/check_upstream_updates.py
   reason: 合理功能：本工具的核心功能就是呼叫外部轉檔程式（pdftotext、ebook-convert）進行文件解析，以及內部維運腳本呼叫 git／gh 檢查上游狀態；參數皆為固定字面值或程式內驗證過的路徑，不會拼接任意使用者輸入。
-- hash: sha256:34bd79d7796893f5a4254a92a50ad91f144fd3bc0b7bc083f78e1456665509e0
+- hash: sha256:f7c777b883cfa0cedf6da7e9cd69634cf222289f9f27ef29b46e99ea92e3b8c0
   rule_id: AST4
   file: tools/check_upstream_updates.py
   reason: 合理功能：本工具的核心功能就是呼叫外部轉檔程式（pdftotext、ebook-convert）進行文件解析，以及內部維運腳本呼叫 git／gh 檢查上游狀態；參數皆為固定字面值或程式內驗證過的路徑，不會拼接任意使用者輸入。
-- hash: sha256:0998704e3ea42d800c17145d5ac7cc3feafd2b9689793809bc86a556096fef15
+- hash: sha256:2e63175241696ca975dd6a34f7f7aef5df36bfb822c4d32216bd6b85a63846df
   rule_id: TT2
   file: tools/check_dependency_freshness.py
   reason: 合理功能：tools/check_dependency_freshness.py 寫入 $GITHUB_OUTPUT 環境變數指定的檔案是 GitHub Actions 回傳 job output 的標準寫法，非資料外洩。
@@ -116,7 +116,7 @@ fingerprints:
   rule_id: TT2
   file: tools/check_dependency_freshness.py
   reason: 合理功能：tools/check_dependency_freshness.py 寫入 $GITHUB_OUTPUT 環境變數指定的檔案是 GitHub Actions 回傳 job output 的標準寫法，非資料外洩。
-- hash: sha256:aac739929e9325db2308246c59de421c0b39f38b61b74b1845b03265db108990
+- hash: sha256:dc79b1e20a4d35fa2b781e44da92ebf144301d9cc2f2d9569e615d57436f738a
   rule_id: AST4
   file: tools/stage_scan_input.py
   reason: 合理功能：自我掃描 gate 的暫存工具以 shell false 的 argv 陣列呼叫 git，只執行唯讀的 ls-files 取得檔案清單與 index 行尾；子命令為程式內常數，repo 路徑來自 dev_check.ps1 自身位置。
@@ -132,31 +132,31 @@ fingerprints:
   rule_id: AS3
   file: docs/install.md
   reason: 自我指涉：README／docs/install.md 列出各 agent host 的 skills 目錄路徑（~/.claude/skills/ 等）是安裝說明，不是執行期間列舉或讀取其他已安裝 skill 的內容。
-- hash: sha256:69ef0b0aca6c6276e6053dbd4128bcfcafd57d7e6eabfa372a12593c91915628
+- hash: sha256:15775f0d7a41a95907b92887dc1c3c9aa16434e8232ccd5ce4f7d24a887a7852
   rule_id: P2
   file: .github/PULL_REQUEST_TEMPLATE.md
   reason: 自我指涉：PR 範本與 SKILL.md 開頭的 HTML 註解是給人類貢獻者／跨 agent host 看的說明文字，不是要蓋過系統指令的注入內容。
-- hash: sha256:9df87605cbdc3d677f0b9e7e585ede3123c4965d528a13ad0f6b46ac381c0ffe
+- hash: sha256:ec849a235797808d3456705f5e32827b1501da6913a28da5934e67f4a21c52d7
   rule_id: P2
   file: .github/PULL_REQUEST_TEMPLATE.md
   reason: 自我指涉：PR 範本與 SKILL.md 開頭的 HTML 註解是給人類貢獻者／跨 agent host 看的說明文字，不是要蓋過系統指令的注入內容。
-- hash: sha256:6d3862745fdfb8b953aaa1ce5b8e35eec105efe3f26a6573f4dbac613eabac3f
+- hash: sha256:81efbc2a75037bd5005b0e20b770082e001350d87b250622311e64b1685745e0
   rule_id: P1
   file: tests/test_scan_coverage.py
   reason: 已人工審查：這是 prompt-injection 掃描器的惡意回歸 fixture，測試要求偵測並拒絕該句，不會作為 agent 指令執行。
-- hash: sha256:5bb141df7ab4b88af49a1c386f0ed2da5dc90a8953e8ef0a6342c4eeba5a77a6
+- hash: sha256:ef906d7b51ad95c35bc0bc5ed9569ce40d533fec1fabdb2c3f72de5a0c46ef5f
   rule_id: P1
   file: tests/test_scan_generated_skill.py
   reason: 已人工審查：Ignore previous instructions 是明確的負向測試輸入，assert 要求掃描器回報 prompt.ignore_previous。
-- hash: sha256:1f61afd3820954cda82c92675a294a1442149730e439d02c0aac39134e2fe5b6
+- hash: sha256:905515c20877c831ad6c9466995fb0e3d83b07f11970f13df243ab9c6ca0909b
   rule_id: SC4
   file: requirements-security.txt
   reason: 已人工審查：SkillSpector 以 SanHsien fork 的精確 Git commit 釘定；OSV 無法從 PEP 508 VCS URL 推導版本而以名稱查詢舊漏洞，並不代表該 commit 含未修補版本。
-- hash: sha256:3cca4179b19f558edc79366be236e340c5490f11daae4d969c2d2e6b6cc859c5
+- hash: sha256:4dc638b38d97e1b4a4ef5c954d0e152b9b4e70f5f2286448ab740a84bf08a252
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：文件明確禁止推送 upstream，並要求只推 SanHsien origin；這是安全邊界說明，不是參數濫用指令。
-- hash: sha256:5797227f6fd2c2b8f6fe908792ae0471de64d17545bdc87b81129f45a752f8e0
+- hash: sha256:14def8be705bc1c35a7bd169880f3cefbd133cea365be2bcc8f0546cf2789352
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：同一段禁止推送 upstream 的 normalized view；沒有執行路徑，且保留此文字能防止誤推母 repo。
@@ -184,11 +184,11 @@ fingerprints:
   rule_id: E2
   file: tests/test_no_bytecode_pollution.py
   reason: 自我指涉：回歸測試複製 os.environ 並刻意移除 PYTHONDONTWRITEBYTECODE，再傳給同一台機器上執行入口腳本的子行程，用來證明防護不依賴呼叫端環境；環境變數不寫檔、不外傳。
-- hash: sha256:c1865590118b19c6b5b973bfd5866f3b93baa3f7af35461adb6a482d0145e5bc
+- hash: sha256:50ca338e5cc0960c940fde104f0fbb665b55c6b59271d72b3213c32559adaa2f
   rule_id: AST4
   file: tests/test_no_bytecode_pollution.py
   reason: 自我指涉：測試 helper 以 shell false 的 argv 陣列執行 sys.executable 加 repo 內固定的入口腳本清單，目的地是 pytest tmp_path 的安裝副本，並設 120 秒 timeout。
-- hash: sha256:0ded76ab170a79020e0aea7fce28226e1b1ef8dbe02c58cec428b66c2031ca9a
+- hash: sha256:bed74f0337f47f0db44be691f43091f4df910f733c0138876512029d9d2d30cf
   rule_id: AST4
   file: tests/test_no_bytecode_pollution.py
   reason: 自我指涉：fixture 以 shell false 的固定 argv 執行唯讀的 git ls-files 列出追蹤檔，再複製到 pytest tmp_path；子命令為測試常數。

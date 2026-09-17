@@ -1,5 +1,31 @@
 # 維護決策
 
+## 2026-09-17：SkillSpector pin 移到 `82bbe8b`，gate 契約跟上新版
+
+**決定**：`requirements-security.txt` 從 `75bd6f3` 換到 `82bbe8b`（SanHsien/SkillSpector 同步上游 53 個
+commit，版本號仍 2.11.2）。
+
+**為什麼現在換**：SkillSpector fork 在 2026-09-13 把歷史壓成單一 commit，舊 pin `75bd6f3` 此後只靠兩個
+Dependabot 分支撐著可及；那兩個 PR 一關閉、分支被刪，全新安裝就可能拉不到。新 pin 在 fork 的 `main` 上。
+另外本機 gate 用的 venv 是 editable 安裝、指向 fork checkout，已經在跑新版——不換 pin，本機與 CI 會用
+不同掃描器。
+
+**連帶調整**：
+- **每檔預算變數**：`tools/dev_check.ps1` 改設上游 #522 的
+  `SKILLSPECTOR_MAX_STATIC_ANALYSIS_SECONDS_PER_ARTIFACT`；舊的 `SKILLSPECTOR_MAX_STATIC_SECONDS`
+  是 fork 自有變數，同步時已移除，新版會忽略它。
+- **analyzer 契約**：新版在 `--no-llm` 下把 3 個 semantic analyzer 以
+  `disabled／disabled_by_configuration`、工作量全 0 列進狀態表，舊版是省略。`tools/check_skillspector_report.py`
+  的精確集合加入這 3 個，並規定它們只能是 disabled——若在 `--no-llm` 掃描中回報做了工作，gate 失敗，
+  因為那代表 gate 量的不是它宣稱的東西。新增兩個測試（semantic 回報 completed、缺少 semantic 列），
+  拿掉守衛時前者會失敗。
+- **fingerprint**：新版改了 finding 的識別內容，19 筆既有項目（14 組）雜湊漂移，同規則、同檔案、同證據，
+  理由不變只換雜湊；`tests/test_no_bytecode_pollution.py` 那組兩筆理由不同，依證據是否為
+  `git ls-files` 對應。沒有新增或消失的 finding。
+
+**驗證**：`tools/dev_check.ps1` WINDOWS DEV CHECK GREEN，pytest 635 passed、8 skipped，自我掃描無新
+finding。
+
 ## 2026-09-17：批次審查 — 泰盧固文、安裝範圍選擇、兩個批次抽取缺陷
 
 commit 水位 `59c4ac8` → `abc666b`；PR 水位 226 → 229；issue 水位 221 → 227。

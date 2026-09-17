@@ -34,6 +34,20 @@ _EXPECTED_NO_LLM_ANALYZERS = frozenset(
         "static_patterns_system_prompt_leakage",
         "static_patterns_tool_misuse",
         "static_yara",
+        "semantic_developer_intent",
+        "semantic_quality_policy",
+        "semantic_security_discovery",
+    }
+)
+# Analyzers a --no-llm scan must report as switched off by configuration, never as run.
+# The semantic analyzers need an LLM; since the 2026-09-17 scanner sync the report lists
+# them explicitly instead of omitting them, so their absence or any work is a contract break.
+_DISABLED_WITHOUT_LLM = frozenset(
+    {
+        "meta_analyzer",
+        "semantic_developer_intent",
+        "semantic_quality_policy",
+        "semantic_security_discovery",
     }
 )
 
@@ -177,9 +191,13 @@ def _analyzers_complete(report: dict[str, object]) -> bool:
         if status == "not_applicable":
             if any(counts):
                 return False
-        elif analyzer_id == "meta_analyzer" and status == "disabled":
+        elif analyzer_id in _DISABLED_WITHOUT_LLM and status == "disabled":
             if any(counts) or row.get("reason_code") != "disabled_by_configuration":
                 return False
+        elif analyzer_id.startswith("semantic_"):
+            # An LLM analyzer doing work in a --no-llm scan means the gate is not
+            # measuring what it claims to measure.
+            return False
         elif status == "completed":
             allowed_failed = len(binary_exclusions.get(analyzer_id, set()))
             if (

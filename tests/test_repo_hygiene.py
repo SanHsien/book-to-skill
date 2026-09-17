@@ -116,7 +116,7 @@ def test_optional_document_parsers_have_security_version_floors():
 def test_fresh_clone_gate_uses_the_pinned_security_scanner():
     requirement = (
         "skillspector @ git+https://github.com/SanHsien/SkillSpector.git@"
-        "75bd6f3f01e2268bc9de25f64a71463ebe872756"
+        "82bbe8bd88a624d13849ed29757ac568e5341732"
     )
     assert requirement in (REPO_ROOT / "requirements-security.txt").read_text(
         encoding="utf-8"

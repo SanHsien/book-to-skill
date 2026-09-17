@@ -26,6 +26,15 @@ EXPECTED_ANALYZERS = {
     "static_patterns_system_prompt_leakage",
     "static_patterns_tool_misuse",
     "static_yara",
+    "semantic_developer_intent",
+    "semantic_quality_policy",
+    "semantic_security_discovery",
+}
+DISABLED_WITHOUT_LLM = {
+    "meta_analyzer",
+    "semantic_developer_intent",
+    "semantic_quality_policy",
+    "semantic_security_discovery",
 }
 
 
@@ -44,12 +53,14 @@ def _completed_analyzer(analyzer_id):
 
 def _complete_report(*, issues=None):
     statuses = [_completed_analyzer(item) for item in sorted(EXPECTED_ANALYZERS)]
-    next(item for item in statuses if item["analyzer_id"] == "meta_analyzer").update(
-        status="disabled",
-        planned_work=0,
-        completed=0,
-        reason_code="disabled_by_configuration",
-    )
+    for item in statuses:
+        if item["analyzer_id"] in DISABLED_WITHOUT_LLM:
+            item.update(
+                status="disabled",
+                planned_work=0,
+                completed=0,
+                reason_code="disabled_by_configuration",
+            )
     return {
         "execution_successful": True,
         "issues": [] if issues is None else issues,
@@ -92,6 +103,27 @@ def test_report_exit_code_rejects_unknown_disabled_analyzer():
     report["analysis_completeness"]["analyzer_statuses"][-2].update(
         status="disabled", planned_work=0, completed=0
     )
+    assert report_exit_code(report) == 2
+
+
+def test_report_exit_code_rejects_semantic_analyzer_that_ran_without_llm():
+    report = _complete_report()
+    row = next(
+        item
+        for item in report["analysis_completeness"]["analyzer_statuses"]
+        if item["analyzer_id"] == "semantic_security_discovery"
+    )
+    row.update(status="completed", planned_work=1, completed=1)
+    row.pop("reason_code")
+    assert report_exit_code(report) == 2
+
+
+def test_report_exit_code_rejects_missing_semantic_analyzer_row():
+    report = _complete_report()
+    statuses = report["analysis_completeness"]["analyzer_statuses"]
+    report["analysis_completeness"]["analyzer_statuses"] = [
+        item for item in statuses if item["analyzer_id"] != "semantic_quality_policy"
+    ]
     assert report_exit_code(report) == 2
 
 
