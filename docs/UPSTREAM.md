@@ -43,7 +43,7 @@ README 衝突的解法：上游新內容併進 `README.en.md`，再把對應段�
 | `01f8a74`（#218 落地） | 不適用 | 只改 `pdf_inspector_integration.py`，本 fork 未引進該模組 |
 | `ecf1860`、`59c4ac8`（#213／#226） | 不引用 | dependabot 只動上游自己的 `codeql.yml`，本 fork workflow 已分岔 |
 | #220（open） | 不適用 | 同 #218，pdf-inspector 專屬 |
-| #222（open） | **缺陷已驗證，另案採用** | 乾淨安裝副本跑一次工具就留下兩個 `__pycache__`；修法是入口腳本設 `sys.dont_write_bytecode` |
+| #222（open） | **採用**（cherry-pick＋測試改寫） | 乾淨安裝副本跑一次工具就留下兩個 `__pycache__`，套用後 0 個；上游測試會刪工作樹檔案，在 OneDrive 上 WinError 5，改在 `tmp_path` 副本上跑 |
 | #223、#224、#225（open） | 延後至合併 | 泰盧固文偵測、re-run guard、evals 計分；後兩者分別是新功能與本 fork 不跑的 eval |
 | issue #217、#219 | 不適用 | pdf-inspector 的 metadata 缺陷 |
 | issue #221 | 備查 | 上游公告第二個冒名 repo 下架，本 fork `SECURITY-NOTICE.md` 已說明來源辨識 |

@@ -152,11 +152,11 @@ fingerprints:
   rule_id: SC4
   file: requirements-security.txt
   reason: 已人工審查：SkillSpector 以 SanHsien fork 的精確 Git commit 釘定；OSV 無法從 PEP 508 VCS URL 推導版本而以名稱查詢舊漏洞，並不代表該 commit 含未修補版本。
-- hash: sha256:d741a8d5759071b88bb35708a9910ba50aba772cd9bdef4f6cda214926450ddb
+- hash: sha256:3412ace2ecaaf2f152f0d98f4112aba562e4a453546f4ed67540a83296fa1cf9
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：文件明確禁止推送 upstream，並要求只推 SanHsien origin；這是安全邊界說明，不是參數濫用指令。
-- hash: sha256:3a5f690046cb3dbe87558af4d4023a22a88bca0b64e6ab8459628de6153b6880
+- hash: sha256:0c7312a3a5a10e94effa935e38349fcdb347644bbd9a7d23b88819f29c04ccde
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：同一段禁止推送 upstream 的 normalized view；沒有執行路徑，且保留此文字能防止誤推母 repo。
@@ -180,3 +180,15 @@ fingerprints:
   rule_id: RA2
   file: SKILL.md
   reason: 誤判：同一條持久化樣式在 Step 10 命中建立 `~/.claude/skills` 連結目錄的說明。連結只是讓 Claude Code 看得到已安裝的 skill，使用者可自行刪除；沒有排程、開機項目或背景行程。
+- hash: sha256:d99cc18da520fadda62a065dd37901ce88d7e1fcfe89b972d12ee2c3e7c26676
+  rule_id: E2
+  file: tests/test_no_bytecode_pollution.py
+  reason: 自我指涉：回歸測試複製 os.environ 並刻意移除 PYTHONDONTWRITEBYTECODE，再傳給同一台機器上執行入口腳本的子行程，用來證明防護不依賴呼叫端環境；環境變數不寫檔、不外傳。
+- hash: sha256:c1865590118b19c6b5b973bfd5866f3b93baa3f7af35461adb6a482d0145e5bc
+  rule_id: AST4
+  file: tests/test_no_bytecode_pollution.py
+  reason: 自我指涉：測試 helper 以 shell false 的 argv 陣列執行 sys.executable 加 repo 內固定的入口腳本清單，目的地是 pytest tmp_path 的安裝副本，並設 120 秒 timeout。
+- hash: sha256:0ded76ab170a79020e0aea7fce28226e1b1ef8dbe02c58cec428b66c2031ca9a
+  rule_id: AST4
+  file: tests/test_no_bytecode_pollution.py
+  reason: 自我指涉：fixture 以 shell false 的固定 argv 執行唯讀的 git ls-files 列出追蹤檔，再複製到 pytest tmp_path；子命令為測試常數。

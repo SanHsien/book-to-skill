@@ -35,11 +35,17 @@ fork 的 workflow 已分岔且自有 pin 慣例，由 `tools/check_dependency_fr
 **延後至合併**：PR #223（泰盧固文章節偵測，與本批兩筆同型，但仍未合併）、#224（re-run guard，
 改 SKILL.md 流程契約的新功能）、#225（evals 計分，本 fork 不跑那套 eval）。
 
-**已驗證缺陷、下一步採用**：PR #222（部署目錄殘留 `__pycache__`）。實測本 fork 同樣中招：把
+**採用未合併 PR #222（部署目錄殘留 `__pycache__`），並改寫其測試**：實測本 fork 同樣中招——把
 `git archive HEAD` 展開成一份乾淨的安裝副本後，只跑一次 `tools/scan_generated_skill.py`，
 `book_to_skill/__pycache__` 與 `book_to_skill/parsers/__pycache__` 就出現在被安裝的目錄裡。
-修法是在各入口腳本設 `sys.dont_write_bytecode = True` 並加回歸測試，另案處理以免與本次的
-章節與安裝路徑變更混在同一個提交。
+這是可重現的缺陷，符合採用未合併 PR 的門檻。三個 commit 保留原作者 cherry-pick，在各入口腳本
+設 `sys.dont_write_bytecode = True`；套用後同一實驗 0 個 `__pycache__`。
+
+上游附帶的回歸測試會在**真實工作樹**刪除 `__pycache__` 再重跑，本 fork 的 OneDrive 路徑上每個案例
+都在 `rmdir` 得到 WinError 5（存取被拒），而且改動 checkout 本身就會與其他 import 本套件的行程競爭。
+改成每個入口腳本在 `tmp_path` 的乾淨副本（`git ls-files` 複製）上執行——這也正是防護要保護的實際
+情境：skill 被展開到 host 的 skills 目錄後直接執行。突變驗證：分別拿掉 `scripts/extract.py`、
+`tools/scan_generated_skill.py`、`tools/discovery_tax.py` 的防護，對應測試都會失敗。
 
 **issue**：#217／#219 都是 pdf-inspector 的 metadata 缺陷，本 fork 無該模組，不適用；#221 是上游
 公告第二個冒名 repo 遭下架，備查——本 fork 的 `SECURITY-NOTICE.md` 已說明來源辨識方式，無需動作。
