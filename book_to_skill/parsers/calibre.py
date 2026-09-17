@@ -1,16 +1,24 @@
 from __future__ import annotations
 
+import itertools
 import os
 import shutil
 import subprocess
 import sys
 from book_to_skill.config import OUTPUT_DIR
 
+_OUTPUT_SEQ = itertools.count()
+
 
 def extract_with_ebook_convert(input_path: str) -> str | None:
     if not shutil.which("ebook-convert"):
         return None
-    output_path = OUTPUT_DIR / "ebook-convert-output.txt"
+    # A name unique to this call: the work directory is shared by every source in
+    # a batch, so a fixed name let a conversion that reports success without
+    # writing anything be satisfied by an earlier source's file — one book's text
+    # recorded under another source's name. The pid keeps it unique across runs
+    # that share a BOOK_SKILL_WORKDIR.
+    output_path = OUTPUT_DIR / f"ebook-convert-output-{os.getpid()}-{next(_OUTPUT_SEQ)}.txt"
     try:
         input_path = os.path.abspath(input_path)
         result = subprocess.run(
