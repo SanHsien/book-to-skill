@@ -214,6 +214,18 @@ _TA_CHAPTER = re.compile(
     rf"^\s*(?:#{{1,6}}\s+)?அத்தியாயம்\s*([0-9{_TA_DIGITS}]+)\b"
 )
 
+# Telugu chapter headings: "అధ్యాయము 1", "అధ్యాయం ౧", "## అధ్యాయం 2".
+# The word has two common spellings sharing the stem అధ్యాయ — అధ్యాయము (formal)
+# and అధ్యాయం (modern) — so both endings are matched. Telugu digits
+# (U+0C66-U+0C6F) are positional, so only a digit remap is needed. Requiring the
+# full word then a number keeps prose, or an inflected form such as "అధ్యాయంలో",
+# from matching.
+_TE_DIGITS = "౦-౯"
+_TE_DIGIT_MAP = str.maketrans("౦౧౨౩౪౫౬౭౮౯", "0123456789")
+_TE_CHAPTER = re.compile(
+    rf"^\s*(?:#{{1,6}}\s+)?అధ్యాయ(?:ము|ం)\s*([0-9{_TE_DIGITS}]+)\b"
+)
+
 # Russian (Cyrillic) chapter headings: "Глава 1", "ГЛАВА 12", "## Глава 2".
 # Requiring whitespace then a number keeps prose forms from matching.
 _RU_CHAPTER = re.compile(r"^\s*(?:#{1,6}\s+)?глава\s+([0-9]+)\b", re.IGNORECASE)
@@ -604,6 +616,9 @@ def _match_chapter_number(line: str) -> int | None:
     tam = _TA_CHAPTER.match(s)
     if tam:
         return int(tam.group(1).translate(_TA_DIGIT_MAP))
+    tem = _TE_CHAPTER.match(s)
+    if tem:
+        return int(tem.group(1).translate(_TE_DIGIT_MAP))
     rum = _RU_CHAPTER.match(s)
     if rum:
         return int(rum.group(1))
@@ -628,6 +643,7 @@ def _chapter_number(line: str) -> int | None:
     "## บทที่ ๑"), Hindi ("अध्याय 1", "अध्याय १", "## अध्याय 2"),
     Bengali ("অধ্যায় 1", "অধ্যায় ১", "## অধ্যায় 2"),
     Tamil ("அத்தியாயம் 1", "அத்தியாயம் ௧", "## அத்தியாயம் 2"),
+    Telugu ("అధ్యాయము 1", "అధ్యాయం ౧", "## అధ్యాయం 2"),
     Greek ("Κεφάλαιο 1", "ΚΕΦΑΛΑΙΟ 12", "## Κεφάλαιο 2"),
     Korean ("제1장 총칙", "## 제4장 근로시간과 휴식"), and
     Persian ("فصل ۱", "فصل اول", "فصل بیست و یکم", "بخش ۲: مفاهیم",

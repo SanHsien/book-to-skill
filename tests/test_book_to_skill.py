@@ -702,6 +702,19 @@ class TestDetectStructure:
         assert _chapter_number("அத்தியாயத்தில் உள்ளது") is None
         assert _chapter_number("அத்தியாயம்") is None
 
+    def test_detects_telugu_chapters_and_rejects_prose(self):
+        """Both spellings (అధ్యాయము／అధ్యాయం) with Telugu or Arabic digits."""
+        from book_to_skill.utils import _chapter_number
+
+        text = (
+            "అధ్యాయము ౧ పరిచయం\nసారాంశం\n"
+            "## అధ్యాయం ౨ పద్ధతులు\nసారాంశం\n"
+            "అధ్యాయం 3 ఫలితాలు\nసారాంశం"
+        )
+        assert detect_structure(text)["chapters_detected"] == 3
+        assert _chapter_number("ఈ అధ్యాయంలో మనం చర్చిస్తాము") is None
+        assert _chapter_number("అధ్యాయం") is None
+
     # ── Korean chapter headings ────────────────────────────────────────────
 
     def test_korean_je_n_jang(self):
