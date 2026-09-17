@@ -1,5 +1,29 @@
 # 維護決策
 
+## 2026-09-17：批次審查 — 泰盧固文、安裝範圍選擇、兩個批次抽取缺陷
+
+commit 水位 `59c4ac8` → `abc666b`；PR 水位 226 → 229；issue 水位 221 → 227。
+
+**採用（最小重做）**：
+- `2057f07`（#223，泰盧固文 `అధ్యాయము N`／`అధ్యాయం N`）：2026-09-15 記為「等合併」，已合併。比照
+  希臘文與坦米爾文手動加入（本 fork 的 `utils.py` 已分岔），兩種拼法都收、數字重映射、要求數字；
+  拿掉 dispatch 新測試會失敗。
+- `a45a2c9`（#210，安裝範圍選擇）：延伸剛採用的 #125。Step 5 先依使用者明確要求或
+  `BOOK_TO_SKILL_SCOPE` 決定個人／專案範圍，再判斷 host；沒指定就維持 `~/.agents/skills` 預設，
+  不因為存在專案目錄就強制詢問。本 fork 的 Step 5 已因 Windows junction 改寫、上游的架構圖又帶
+  Hermes，因此不 cherry-pick；上游契約測試逐字取用，對改寫後的文字通過。
+
+**採用未合併 PR（本 fork 可重現的缺陷）**：
+- #229（Calibre 轉換沿用前一本書的輸出）：`extract_with_ebook_convert()` 用固定檔名寫入整批共用的
+  工作目錄，並把「exit 0 且檔案存在」當成功；一次回報成功卻沒寫檔的轉換，就會讀到上一本書的文字，
+  記在另一個來源名下。用 PR 附的測試對現行程式碼跑，2 個失敗；cherry-pick 後 5/5。
+- #228（抽取後讀不到檔案大小會讓整批中止，對應 issue #227）：`main()` 只接 `ExtractionError`，而抽取
+  後的 `os.path.getsize` 沒有包起來，來源在執行中消失就中斷剩下所有書。用 PR 的測試重現 2 個失敗；
+  只取 `utils.py` 那一半（以原作者提交），`pdf_inspector_integration.py` 那一半本 fork 不適用。
+
+**不適用**：`0d538c8`（#220，pdf-inspector 的過期 metadata）——本 fork 未引進該模組。
+`abc666b`（#225，evals 計分）——本 fork 不跑那套 eval。
+
 ## 2026-09-15：批次審查 — 採用兩種章節語言與跨 agent 安裝預設，Windows 改用 junction
 
 commit 水位 `a6cad12` → `59c4ac8`；PR 水位 216 → 226；issue 水位 207 → 221。

@@ -60,7 +60,7 @@ rules:
   message: '*subprocess*'
   reason: 已人工審查：測試 helper 以 shell false 的固定 argv 陣列呼叫 git，輸入為測試常數且有 30 秒 timeout，不拼接 shell。
 fingerprints:
-- hash: sha256:a44f4277eb9985a53a9aa12fb2862f4265d9c95eb968fb3b9916eea1dc596488
+- hash: sha256:052e4b824ea76c82c0aee7528c8e32d2c2c951beaa392c6eb9a14e52e0c4a81b
   rule_id: AE4
   file: tests/test_book_to_skill.py
   reason: 已人工審查：測試刻意含 Unicode 正規化與控制字元樣本以驗證 sanitizer，不含偽裝指令或機密。
@@ -68,7 +68,7 @@ fingerprints:
   rule_id: AST4
   file: book_to_skill/dependencies.py
   reason: 合理功能：本工具的核心功能就是呼叫外部轉檔程式（pdftotext、ebook-convert）進行文件解析，以及內部維運腳本呼叫 git／gh 檢查上游狀態；參數皆為固定字面值或程式內驗證過的路徑，不會拼接任意使用者輸入。
-- hash: sha256:8329bffafc9757d513b4c5458bb800e33bc0d1b86463340194bae0d72392b790
+- hash: sha256:39ff9940cc3a74b412568215df5a2a319ad94926e6faf12d887c5b4b55952beb
   rule_id: AST4
   file: book_to_skill/parsers/calibre.py
   reason: 合理功能：本工具的核心功能就是呼叫外部轉檔程式（pdftotext、ebook-convert）進行文件解析，以及內部維運腳本呼叫 git／gh 檢查上游狀態；參數皆為固定字面值或程式內驗證過的路徑，不會拼接任意使用者輸入。
@@ -120,7 +120,7 @@ fingerprints:
   rule_id: AST4
   file: tools/stage_scan_input.py
   reason: 合理功能：自我掃描 gate 的暫存工具以 shell false 的 argv 陣列呼叫 git，只執行唯讀的 ls-files 取得檔案清單與 index 行尾；子命令為程式內常數，repo 路徑來自 dev_check.ps1 自身位置。
-- hash: sha256:2510ab074dc57f522b9ac00d74068fa61e54bfdad128b062c7fb8e26298b015c
+- hash: sha256:6ff35639e7d7bf617bbc4d3bdf5b55e77b91e4e9b5e0697fea6a4cb878c2fc77
   rule_id: LP3
   file: SKILL.md
   reason: 已人工審查：allowed-tools 刻意不寫死以維持多 host 相容；可見文件只宣告 shell 與檔案讀寫需求，各 host 仍在實際呼叫時執行授權。
@@ -128,7 +128,7 @@ fingerprints:
   rule_id: AS3
   file: README.en.md
   reason: 自我指涉：README／docs/install.md 列出各 agent host 的 skills 目錄路徑（~/.claude/skills/ 等）是安裝說明，不是執行期間列舉或讀取其他已安裝 skill 的內容。
-- hash: sha256:35a6296c92edcfa9138163f9ac755c2a068790a4b73be8f1621ead1bff6e0144
+- hash: sha256:7ec45054afb13a8db37ad750a7cecba4ed0ee9fca43960a89309ec1dc166290b
   rule_id: AS3
   file: docs/install.md
   reason: 自我指涉：README／docs/install.md 列出各 agent host 的 skills 目錄路徑（~/.claude/skills/ 等）是安裝說明，不是執行期間列舉或讀取其他已安裝 skill 的內容。
@@ -152,11 +152,11 @@ fingerprints:
   rule_id: SC4
   file: requirements-security.txt
   reason: 已人工審查：SkillSpector 以 SanHsien fork 的精確 Git commit 釘定；OSV 無法從 PEP 508 VCS URL 推導版本而以名稱查詢舊漏洞，並不代表該 commit 含未修補版本。
-- hash: sha256:3412ace2ecaaf2f152f0d98f4112aba562e4a453546f4ed67540a83296fa1cf9
+- hash: sha256:3cca4179b19f558edc79366be236e340c5490f11daae4d969c2d2e6b6cc859c5
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：文件明確禁止推送 upstream，並要求只推 SanHsien origin；這是安全邊界說明，不是參數濫用指令。
-- hash: sha256:0c7312a3a5a10e94effa935e38349fcdb347644bbd9a7d23b88819f29c04ccde
+- hash: sha256:5797227f6fd2c2b8f6fe908792ae0471de64d17545bdc87b81129f45a752f8e0
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：同一段禁止推送 upstream 的 normalized view；沒有執行路徑，且保留此文字能防止誤推母 repo。
@@ -168,15 +168,15 @@ fingerprints:
   rule_id: YR4
   file: tests/test_scan_generated_skill.py
   reason: 已人工審查：測試組合 prompt override、authority mutation、外傳與 Unicode 隱藏字元，目的是驗證 generated-skill scanner 全部攔截。
-- hash: sha256:ba0a9686b239ce2641eb4ac006af8aa583d4595416a058a99db9256f9bbeed9a
+- hash: sha256:672d6b66f19edd3996c260c72a0285703fe1e3146c19d4cd13b434f9e63f7166
   rule_id: AS3
   file: SKILL.md
   reason: 自我指涉：Step 10 的 `mkdir -p "$HOME/.claude/skills"` 是為產出的 skill 建立安裝目錄並放入連結，不是執行期列舉或讀取其他已安裝 skill 的內容。
-- hash: sha256:c639501a2ee56a4546d14dfa329c510cf295679adc3ec0c91bbbd1cef4200613
+- hash: sha256:2e13a25d1a2df9d64ea194b214dd9d35d0c765418af009ba1a15d3f60e7d6c62
   rule_id: RA2
   file: SKILL.md
   reason: 誤判：RA2 的持久化樣式比對 create／mkdir 後接 `~/.` 開頭的隱藏目錄，而 Step 5 這段講的是個人安裝預設落在跨 agent 根目錄 `~/.agents/skills`、不存在時才建立。這是安裝位置說明，沒有 cron、開機腳本或跨 session 狀態。
-- hash: sha256:40bc5af519fc32fb8298ffb9d47cd86c44acb9a1299a1cffcd9a817c99f7f663
+- hash: sha256:2887c926c184d38f0ed025eb08e0251bd07b2c91c6135a828c3f8cc7f7505296
   rule_id: RA2
   file: SKILL.md
   reason: 誤判：同一條持久化樣式在 Step 10 命中建立 `~/.claude/skills` 連結目錄的說明。連結只是讓 Claude Code 看得到已安裝的 skill，使用者可自行刪除；沒有排程、開機項目或背景行程。
@@ -192,3 +192,11 @@ fingerprints:
   rule_id: AST4
   file: tests/test_no_bytecode_pollution.py
   reason: 自我指涉：fixture 以 shell false 的固定 argv 執行唯讀的 git ls-files 列出追蹤檔，再複製到 pytest tmp_path；子命令為測試常數。
+- hash: sha256:02441f71ea0114257301ad929dbdcb27217b59d8747c285296693905921bf80f
+  rule_id: AS3
+  file: docs/install.md
+  reason: 自我指涉：docs/install.md 說明產生的 skill 預設落在個人跨 agent 根目錄 `~/.agents/skills`、可改選專案目錄，是安裝位置文件，不是執行期間列舉或讀取其他已安裝 skill 的內容。
+- hash: sha256:73beb955bea4274e8b5364c3da05a8fa385c99db26b839b4afd1261463209e56
+  rule_id: RA2
+  file: docs/install.md
+  reason: 誤判：RA2 的持久化樣式比對「write」後接家目錄下以點號開頭的路徑，這段文字是在說明專案範圍的輸出可能需要 host 核准才能寫入，以及 `BOOK_TO_SKILL_SCOPE` 的用法；沒有排程、開機項目或跨 session 狀態。

@@ -32,6 +32,23 @@ Baseline 代表「已審查」，不代表「全部已合併」。
 README 衝突的解法：上游新內容併進 `README.en.md`，再把對應段落翻進 `README.md`。
 第三語系檔（例如 `README.ru.md`）略過，不要合進本 fork。
 
+## 2026-09-17：commit 增量 4 筆 + PR #228–#229 + issue #227 判讀
+
+| commit / PR / issue | 決定 | 一句理由 |
+| --- | --- | --- |
+| `2057f07`（#223 落地） | **採用**（最小重做） | 泰盧固文章節偵測，先前「等合併」的觸發條件成立 |
+| `a45a2c9`（#210 落地） | **採用**（最小重做） | 安裝範圍先於 host 決定、`BOOK_TO_SKILL_SCOPE`；契約測試逐字取用 |
+| `0d538c8`（#220 落地） | 不適用 | pdf-inspector 專屬 |
+| `abc666b`（#225 落地） | 不適用 | 本 fork 不跑 evals |
+| #229（open） | **採用**（cherry-pick） | Calibre 固定檔名讓一本書沿用前一本的輸出；PR 測試對現行程式碼 2 個失敗 |
+| #228（open） | **部分採用** | 抽取後 `getsize` 失敗會中止整批；只取 `utils.py` 半部，pdf-inspector 半部不適用 |
+| issue #227 | 已解決 | 由採用的 #228 修正 |
+
+### 水位
+
+- commit：`abc666b`（upstream/master tip，2026-09-16）
+- PR：**#229**；issue：**#227**
+
 ## 2026-09-15：commit 增量 7 筆 + PR #218–#226 + issue #217/#219/#221 判讀
 
 | commit / PR / issue | 決定 | 一句理由 |
