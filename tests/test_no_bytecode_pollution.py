@@ -8,8 +8,16 @@ run ends up shipped inside the skill: extra files to scan, noise in diffs, and
 
 The agent invoking the skill does not set PYTHONDONTWRITEBYTECODE, so the guard
 has to live in the entry points themselves, before the package is imported.
+
+Each entry point runs against a fresh copy of the tracked files in a temporary
+directory — the same shape as a real install — rather than the working tree.
+Deleting and re-creating bytecode inside the checkout races with other test
+processes and fails outright on synced folders that hold directory handles
+(OneDrive returns "access denied" on `__pycache__` removal).
 """
 
+import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -38,47 +46,26 @@ ENTRY_POINTS = [
 _WALK_SKIP = {".git", ".venv", "venv", "node_modules", ".tox"}
 
 
-def _iter_source_files():
+def _iter_source_files(root: Path):
     """Yield candidate files, pruning whole directories we never care about."""
-    for path in REPO_ROOT.rglob("*"):
-        if _WALK_SKIP & set(path.relative_to(REPO_ROOT).parts):
+    for path in root.rglob("*"):
+        if _WALK_SKIP & set(path.relative_to(root).parts):
             continue
         yield path
 
 
-def _clean() -> None:
-    """Remove bytecode written by test runs or earlier imports."""
-    for path in list(REPO_ROOT.rglob("__pycache__")):
-        if _WALK_SKIP & set(path.relative_to(REPO_ROOT).parts):
-            continue
-        if "tests" in path.relative_to(REPO_ROOT).parts:
-            continue
-        for child in path.iterdir():
-            child.unlink(missing_ok=True)
-        path.rmdir()
-    for pyc in REPO_ROOT.rglob("*.pyc"):
-        rel = pyc.relative_to(REPO_ROOT)
-        if _WALK_SKIP & set(rel.parts) or "tests" in rel.parts:
-            continue
-        pyc.unlink(missing_ok=True)
-
-
-def _artifacts() -> list[str]:
+def _artifacts(root: Path) -> list[str]:
     """Bytecode artifacts that would ship inside the skill."""
-    # Bytecode for the test suite itself is written by pytest when it imports
-    # this module; it is never part of the skill payload, and counting it would
-    # make the pre-check fail for a reason unrelated to the code under test.
     return sorted(
-        str(p.relative_to(REPO_ROOT))
-        for p in _iter_source_files()
+        str(p.relative_to(root))
+        for p in _iter_source_files(root)
         if p.is_file() and p.suffix == ".pyc"
-        and "tests" not in p.relative_to(REPO_ROOT).parts
     )
 
 
-def _supports_help(entry: str) -> bool:
+def _supports_help(root: Path, entry: str) -> bool:
     """`--help` is only safe on modules that define an argparse CLI."""
-    return "argparse" in (REPO_ROOT / entry).read_text(encoding="utf-8")
+    return "argparse" in (root / entry).read_text(encoding="utf-8")
 
 
 def _run(argv: list[str], *, cwd: Path, env: dict) -> subprocess.CompletedProcess:
@@ -95,52 +82,66 @@ def _run(argv: list[str], *, cwd: Path, env: dict) -> subprocess.CompletedProces
 
 
 @pytest.fixture()
-def clean_tree():
-    """Start from a tree free of bytecode, and leave it that way.
-
-    Cleaning rather than asserting on entry matters: other tests import these
-    same modules, so by the time this one runs the tree legitimately contains
-    bytecode. We only care what *this* test's entry point writes.
-    """
-    _clean()
-    yield
-    _clean()
+def installed_skill(tmp_path: Path) -> Path:
+    """A fresh copy of the tracked files, laid out the way a host installs it."""
+    try:
+        listing = subprocess.run(
+            ["git", "-C", str(REPO_ROOT), "ls-files", "-z"],
+            capture_output=True,
+            check=True,
+        ).stdout
+    except (OSError, subprocess.CalledProcessError) as exc:
+        pytest.skip(f"git unavailable: {exc}")
+    root = tmp_path / "book-to-skill"
+    for raw in listing.split(b"\0"):
+        if not raw:
+            continue
+        relative = raw.decode("utf-8", "surrogateescape")
+        source = REPO_ROOT / relative
+        if not source.is_file():
+            continue
+        target = root / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(source, target)
+    assert _artifacts(root) == [], "tracked files unexpectedly contain bytecode"
+    return root
 
 
 @pytest.mark.parametrize("entry", ENTRY_POINTS)
-def test_entry_point_writes_no_bytecode(clean_tree, entry):
-    script = REPO_ROOT / entry
+def test_entry_point_writes_no_bytecode(installed_skill, entry):
+    script = installed_skill / entry
     assert script.is_file(), f"missing entry point: {entry}"
 
     # Deliberately strip any inherited protection: the guard must hold for an
     # agent that simply runs the tool.
-    env = {k: v for k, v in __import__("os").environ.items()
-           if k != "PYTHONDONTWRITEBYTECODE"}
-    env["PYTHONPATH"] = str(REPO_ROOT)
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONDONTWRITEBYTECODE"}
+    env["PYTHONPATH"] = str(installed_skill)
 
     argv = [sys.executable, str(script)]
-    if _supports_help(entry):
+    if _supports_help(installed_skill, entry):
         argv.append("--help")
 
-    _run(argv, cwd=REPO_ROOT, env=env)
-    dirty = _artifacts()
+    _run(argv, cwd=installed_skill, env=env)
+    dirty = _artifacts(installed_skill)
 
     # The import must really have happened, or the test passes vacuously: a
     # crash before importing the package writes no bytecode. Proved by
-    # importing the package in-process and checking it is loaded, which holds
-    # for every entry point including ones with no CLI flags.
+    # importing the package from the installed copy and checking it is loaded,
+    # which holds for every entry point including ones with no CLI flags. The
+    # probe sets the guard itself so it cannot add artifacts of its own.
     probe = _run(
         [
             sys.executable,
             "-c",
             (
-                "import book_to_skill, sys\n"
-                "assert 'book_to_skill' in sys.modules\n"
-                "assert 'book_to_skill.utils' in sys.modules\n"
+                "import sys\n"
+                "sys.dont_write_bytecode = True\n"
+                "import book_to_skill, book_to_skill.utils\n"
+                f"assert book_to_skill.__file__.startswith({str(installed_skill)!r})\n"
                 "print('imported')\n"
             ),
         ],
-        cwd=REPO_ROOT,
+        cwd=installed_skill,
         env=env,
     )
     assert probe.returncode == 0 and "imported" in probe.stdout, (
@@ -151,10 +152,10 @@ def test_entry_point_writes_no_bytecode(clean_tree, entry):
     assert dirty == [], f"{entry} left build artifacts: {dirty[:5]}"
 
 
-def test_entry_point_list_still_matches_the_source_tree(clean_tree):
+def test_entry_point_list_still_matches_the_source_tree():
     """Guard against the list going stale as the package grows."""
     found = set()
-    for py in _iter_source_files():
+    for py in _iter_source_files(REPO_ROOT):
         if py.suffix != ".py":
             continue
         try:
@@ -172,8 +173,10 @@ def test_entry_point_list_still_matches_the_source_tree(clean_tree):
 
     # `__main__.py`/`__init__.py` cannot be guarded from inside the package:
     # Python compiles them before any of our code runs. They are excluded here
-    # and instead SKILL.md must never invoke `python -m book_to_skill`.
+    # and instead SKILL.md must never invoke `python -m book_to_skill`. The test
+    # suite imports the package but is not part of the installed payload.
     found -= {"book_to_skill/__main__.py", "book_to_skill/__init__.py"}
+    found = {path for path in found if not path.startswith("tests/")}
 
     assert found == set(ENTRY_POINTS), (
         "entry points changed; update ENTRY_POINTS and make sure every one sets "
