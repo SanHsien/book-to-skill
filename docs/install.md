@@ -65,6 +65,17 @@ Or manually using standard `git clone` (ensures modular engine files are fetched
 
 ```bash
 git clone https://github.com/virgiliojr94/book-to-skill.git ~/.claude/skills/book-to-skill
+# Project-local (share with team via git):
+# git clone https://github.com/virgiliojr94/book-to-skill.git .claude/skills/book-to-skill
+```
+
+> **Generated book skills — where do they go?** By default the converter uses the established **Personal (global)** root (`~/.agents/skills/<slug>/`, linked into `~/.claude/skills/` under Claude Code). **Project-local** output (`.claude/skills/<slug>/`, `.agents/skills/<slug>/`, or `.github/skills/<slug>/`) is an explicit choice for project-specific, git-shareable skills and may require host approval to write inside the project. Set `BOOK_TO_SKILL_SCOPE=project` or `personal` to make the scope explicit for automation; the converter does not ask a mandatory scope question merely because both scopes are available.
+
+Scope-selection check:
+
+```text
+Before: no scope request or BOOK_TO_SKILL_SCOPE → personal default (~/.agents/skills)
+After:  BOOK_TO_SKILL_SCOPE=project or an explicit project-local request → project-local host root
 ```
 
 Then in any agent session:

@@ -71,6 +71,8 @@ This converter can run from multiple skill systems. When looking for this conver
 1. Cross-agent personal skills (Copilot, Amp, Codex; the default for generated skills): `~/.agents/skills/`
 2. GitHub Copilot CLI personal skills: `~/.copilot/skills/`
 3. Claude Code personal skills: `~/.claude/skills/` (generated skills are linked in from the cross-agent root)
+
+Generated skills use the personal cross-agent root unless the user explicitly asks for a host-private or project-local root. `BOOK_TO_SKILL_SCOPE=project` or `personal` can make that choice explicit for automation.
 4. Project-local Copilot skills: `.github/skills/`
 5. Project-local Claude skills: `.claude/skills/`
 6. Project-local Amp / Copilot skills: `.agents/skills/`
@@ -306,7 +308,9 @@ Otherwise, propose two options and let the user choose:
 
 Default to author-concept format if the book has a strong methodological identity.
 
-Choose the destination skill root (`SKILLS_HOME`). For **personal** (user-level) installs, default to the cross-agent root `~/.agents/skills` — one physical copy that every supported host reaches, natively or through a link:
+Choose the destination skill root (`SKILLS_HOME`). First resolve **scope** from an explicit user request or `BOOK_TO_SKILL_SCOPE`, then probe **host**. A request for project-local/project output selects the project-local row; a request for personal/global output selects the personal row. If neither scope is requested, preserve the established personal default (`~/.agents/skills`). Do not ask a mandatory scope question solely because project-local roots exist. The selected root may still require host approval before writing.
+
+For **personal** (user-level) installs, the cross-agent root `~/.agents/skills` is one physical copy that every supported host reaches, natively or through a link:
 
 | Host agent | Personal skill root | Project-local root |
 |---|---|---|
@@ -319,7 +323,7 @@ Selection rules:
 1. Personal install: set `SKILLS_HOME` to `~/.agents/skills` (create it if missing). One exception, so the default does not invent a convention in someone else's house: if `~/.agents/skills` does not exist **and** the host's private root already holds skills, use the private root instead and say why in the report.
 2. **Claude Code does not scan `~/.agents/skills`** — Step 10 links the skill into `~/.claude/skills/<skill_name>` after generation.
 3. If the user explicitly asks for a host-private root (`~/.copilot/skills`, `~/.claude/skills`, `~/.config/agents/skills`, `~/.config/amp/skills`), honor it and skip the link.
-4. If the user explicitly asked for project-local output, use the project-local row for their host.
+4. If the user explicitly asked for project-local output, or `BOOK_TO_SKILL_SCOPE=project` is set, use the project-local row for their host.
 5. If the choice requires knowing the host (project-local output or the Claude Code link) and you cannot identify it, ask: "Which agent are you running this in — GitHub Copilot CLI, Amp, Codex, or Claude Code?"
 
 Set `SKILLS_HOME` to the selected root and check whether the selected skill directory already exists.
