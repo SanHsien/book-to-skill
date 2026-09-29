@@ -23,6 +23,19 @@ _IMAGE_EXTENSIONS = (
     ".webp",
 )
 
+# OPF package elements normally use the default OPF namespace, but XML also
+# permits an explicit namespace prefix (for example ``<opf:item>``). Keep the
+# existing tolerant, regex-based fallback while accepting that equivalent form.
+_OPF_ELEMENT_PREFIX = r"(?:[A-Za-z_][\w.-]*:)?"
+
+
+def _opf_opening_tags(opf_text: str, local_name: str) -> list[str]:
+    """Return opening tags for an OPF element, with or without a prefix."""
+    return re.findall(
+        rf"<{_OPF_ELEMENT_PREFIX}{re.escape(local_name)}\b[^>]*?/?>",
+        opf_text,
+    )
+
 
 def extract_with_ebooklib(epub_path: str) -> str | None:
     try:
@@ -96,7 +109,7 @@ def extract_with_zipfile(epub_path: str) -> str | None:
                 # both self-closing <item .../> and <item ...></item> forms work
                 # because all attributes live in the opening tag.
                 manifest: dict[str, str] = {}
-                for item_tag in re.findall(r"<item\b[^>]*?/?>", opf_text):
+                for item_tag in _opf_opening_tags(opf_text, "item"):
                     id_m = re.search(r'\bid=["\']([^"\']+)["\']', item_tag)
                     href_m = re.search(r'\bhref=["\']([^"\']+)["\']', item_tag)
                     if id_m and href_m:
@@ -104,8 +117,13 @@ def extract_with_zipfile(epub_path: str) -> str | None:
                         manifest[id_m.group(1)] = resolved
 
                 # Spine: ordered idrefs -> hrefs (true reading order).
-                for idref in re.findall(r'<itemref\b[^>]*?\bidref=["\']([^"\']+)["\']', opf_text):
-                    href = manifest.get(idref)
+                for itemref_tag in _opf_opening_tags(opf_text, "itemref"):
+                    idref_m = re.search(
+                        r'\bidref=["\']([^"\']+)["\']', itemref_tag
+                    )
+                    if not idref_m:
+                        continue
+                    href = manifest.get(idref_m.group(1))
                     if href and href not in seen:
                         spine_order.append(href)
                         seen.add(href)
@@ -146,7 +164,7 @@ def count_epub_chapters(epub_path: str) -> int:
             if not opf_path:
                 return 0
             opf_text = zf.read(opf_path).decode("utf-8", errors="replace")
-            return len(re.findall(r'<itemref\b', opf_text))
+            return len(_opf_opening_tags(opf_text, "itemref"))
     except Exception:
         return 0
 

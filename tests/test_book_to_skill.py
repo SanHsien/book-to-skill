@@ -38,7 +38,7 @@ from book_to_skill.parsers import pdf as pdf_parser
 from book_to_skill.parsers.text import read_text_file
 from book_to_skill.parsers.docx import extract_docx_with_zipfile
 from book_to_skill.parsers.rtf import strip_rtf_fallback
-from book_to_skill.parsers.epub import extract_with_zipfile
+from book_to_skill.parsers.epub import count_epub_chapters, extract_with_zipfile
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -1789,6 +1789,32 @@ class TestEpubSpineOrder:
         files = {"ch1.xhtml": self._doc("FIRST"), "ch2.xhtml": self._doc("SECOND")}
         out = extract_with_zipfile(self._make_epub(tmp_path, opf, files))
         assert out.index("FIRST") < out.index("SECOND")
+
+    def test_prefixed_opf_elements_preserve_spine_order_and_count(self, tmp_path):
+        # XML namespace prefixes are semantically equivalent to the default OPF
+        # namespace. File names deliberately sort opposite to the spine so a
+        # missed prefixed manifest/spine cannot pass through the sorted fallback.
+        opf = (
+            '<opf:package xmlns:opf="http://www.idpf.org/2007/opf" version="3.0">'
+            '<opf:manifest>'
+            '<opf:item id="c1" href="z-first.xhtml" '
+            'media-type="application/xhtml+xml"/>'
+            '<opf:item id="c2" href="a-second.xhtml" '
+            'media-type="application/xhtml+xml"/>'
+            '</opf:manifest><opf:spine>'
+            '<opf:itemref idref="c1"/><opf:itemref idref="c2"/>'
+            '</opf:spine></opf:package>'
+        )
+        files = {
+            "z-first.xhtml": self._doc("FIRST"),
+            "a-second.xhtml": self._doc("SECOND"),
+        }
+        epub_path = self._make_epub(tmp_path, opf, files)
+
+        out = extract_with_zipfile(epub_path)
+
+        assert out.index("FIRST") < out.index("SECOND")
+        assert count_epub_chapters(epub_path) == 2
 
     def test_non_spine_doc_kept_as_safety_net_after_spine(self, tmp_path):
         opf = (
