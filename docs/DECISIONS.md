@@ -293,3 +293,33 @@ shell 語句的路徑表示改為等義 HTML code 或一般敘述；轉換流程
 發布說明中的 `npx skills` 固定為 npm 當前查得的 `skills@1.5.23`，避免未鎖版 CLI
 rug-pull 風險。安全回歸測試仍保留 prompt injection 與 `.env` 外傳樣本；這些刻意的
 惡意 fixture 只用逐筆精確 fingerprint 接受，不改成漂移式 glob。
+
+## 2026-09-30：上游 15 個 commit、13 個 PR、11 個 issue 審查（`abc666b`..`c108d25`）
+
+本線與上游無共同祖先（fork 為單一初始 commit），採 `cherry-pick -x`。Gate：`.venv` 下 `pytest tests` 643 passed、8 skipped。
+
+**採用**（各含上游測試）：
+
+- `#231`（`6d2c539` → `3af5d7a`）：stdlib EPUB fallback 解析 URL 編碼的 manifest href（issue #230）。2 檔 +40/-3。
+- `#239`（`80ae087` → `a383192`）：stdlib DOCX fallback 保留行內 tab／換行（issue #238）。2 檔 +32/-5。
+- `#242`（`03891b1` → `b058199`）：stdlib RTF fallback 解碼十六進位跳脫文字（issue #241）。2 檔 +47/-1。
+- `#249`（`c108d25` → `ad4a889`）：EPUB fallback 支援帶命名空間前綴的 OPF spine（issue #248）。2 檔 +49/-5。
+
+**採用待辦（adoption pending）**，觸發條件＝手動移植並通過 pytest：
+
+- `#229`（`10112e8`，Calibre 路徑重用前一來源輸出）：cherry-pick 於 `parsers/calibre.py` 與 `tests/test_calibre_stale_output.py` 衝突，本 fork 已有同名測試檔，需人工比對。
+- `#228`（`f08d343`，stat 錯誤翻譯）：`utils.py` 衝突。
+- `#245`／`#246`（`5cd1627`、`bfed408`，章節偵測啟發式；issue #236、#237、#244）、`#253`（未合併）：改動 `utils.py` 章節偵測，與上述衝突相依，且屬行為變更，需成組移植與測試。
+- `#224`（`8610aa5`，re-run guard，改動 `SKILL.md` 公開契約與多檔）：風險較大，暫緩。
+- `#222`（`91d17c2`，避免 `__pycache__` 進入部署目錄）：與 `utils.py`／`cli.py` 相依，暫緩。
+
+**不適用／跟隨上游**：
+
+- `#232`、`#243`、`#252`（Kannada、Malayalam、Gujarati 章節標題偵測）：本 fork 以繁中／英文為主，新增語系啟發式非缺陷修正。
+- `#209`、`#216`（OpenClaw、Opencode host 支援，觸及 README 多語系與 `SKILL.md`）：新功能；本 fork 不維護 `README.ru.md`／`zh-CN`。issue #233、#234（README 翻譯漂移）同理不適用。
+- `#247`、`#251`、issue `#235`（CI／actions 升級、可選相依測試 leg）：本線 CI 獨立維護。
+- `#250`（Default_Ignorable 不可見字元，未合併）、issue `#240`：跟隨上游，合併後由 commit 軸抵達。
+
+- issue `#254`（technical 模式在 Docling 執行期失敗時靜默退回 pdftotext，metadata 仍標 technical）：open、尚無修正 PR；跟隨上游，觸發條件＝上游出現修正 commit。
+
+水位：commit `c108d25`（完整 SHA 見 baseline）、PR `253`、issue `254`。日期 2026-09-30。
