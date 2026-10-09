@@ -1,0 +1,8 @@
+{
+  "deferrals": {
+    "docling": {
+      "deferredLatest": "2.136.0",
+      "reason": "已審查 v2.132.0...v2.136.0 的 98 commits／197 files：標準 PDF pipeline 將 page-size 狀態移至 ConversionResult，並新增 RapidOCR model_size 與 code/formula generation 控制。隔離 2.136.0 的本機 Markdown／PDF option construction 通過；唯一 synthetic PDF 的 NativePdfPipeline smoke 回報 backend parse failure，尚不能區分 fixture／本機環境原因，也未驗收產品實際使用的 StandardPdfPipeline table/layout 模型路徑。本輪禁止下載模型，因此維持已修補且 OSV 查詢無公告的 2.132.0，不宣稱新版不相容。重評條件：具備既有本機模型的 bounded technical PDF 驗收，或 PyPI 超過 2.136.0（此精準 deferral 自動失效）。"
+    }
+  }
+}

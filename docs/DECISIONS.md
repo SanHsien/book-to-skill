@@ -362,3 +362,28 @@ v2 fingerprint 綁定完整檔案。PR #126 的兩段既有指引與決策新增
 RA2 的兩處是安裝根目錄與 cleanup 到 link 的文件上下文，無排程或開機程式；
 AS3 是建立 Claude Code 的連結目錄，沒有讀取其他 skill；TM1 的兩個 normalized
 view 均是禁止推送上游的安全邊界。保留既有理由與所有規則，不 suppress 依賴漏洞。
+
+## 2026-10-09：依賴新鮮度的有限評估
+
+**採用 pypdf 6.20.0**：官方 `6.19.0...6.20.0` compare 含 59 commits／65 files。
+除 Brotli、新字型處理與 page tree／text extraction 調整外，`filters.py` 現在在解碼
+前限制每 stream 最多 16 filters，逐層累計輸入與輸出工作量，預設上限 300 MB。
+`pdf`／`all` pin 同步；Python 3.9 marker 不變，不安裝新增的 Brotli extra。
+小型人工 PDF 分別走未壓縮與 Flate 壓縮 stream，驗證既有 wrapper 的文字抽取；
+另外以 17-filter 空 stream 與 3／4 bytes 的小型 ASCIIHex fixture 驗證拒絕與邊界，
+不建立 300 MB 的測試資料。原 6.19.0 缺少這兩個限制欄位，測試先失敗後才升級。
+
+**精準延後 Docling 2.136.0**：官方 `v2.132.0...v2.136.0` compare 含
+98 commits／197 files。標準 PDF pipeline 將 `_page_sizes_by_no` 從 pipeline 狀態
+移至各次 `ConversionResult`，OCR 加入 model-size 選項，code/formula 生成加入
+裁切與 repetition 控制；這些不是只有 pin 或文件變更。
+
+新版只安裝至 repo 外的隔離目錄、不升級現有 Docling 環境。socket 網路連線被禁用、
+模型下載設為 offline；本機 Markdown 與產品 PDF option types 通過。唯一 synthetic
+PDF 的 model-free NativePdfPipeline 回報 backend parse failure，尚未區分 fixture
+與本機環境原因，且它不是本產品實際使用的 StandardPdfPipeline table/layout 路徑。
+因此不宣稱新版 regression 或完整相容，保留已修補的 `2.132.0`。
+
+依既有 `.github/dependency-deferrals.json` 機制只延後 `2.136.0`，附實際 diff 與
+驗收缺口；PyPI 下一版會自動使延後失效。提前重評的條件是已有本機模型時，完成
+一次 bounded technical PDF 驗收。沒有建立永久 `freshness-hold` 或放寬任何 gate。
