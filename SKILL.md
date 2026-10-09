@@ -205,6 +205,14 @@ Read the extractor-printed `metadata.json` path and present the user with an est
 ➡  Proceed with Full Conversion / Update? (or type "analyze only" to preview first)
 ```
 
+**First, sanity-check the chapter count — the estimate is only as good as this number.**
+
+`chapters_detected` comes from a heading scan that looks for "Chapter N" and for Markdown/AsciiDoc headings. A book that numbers its sections `1.`, `2.`, `3.`, or a PDF flattened by `pdftotext` (which carries no Markdown syntax), yields **0** while being perfectly well structured.
+
+Zero is not a small error here, it is a structural one: the output formula multiplies by this count, so a 0 deletes the entire chapter-generation term and the estimate collapses to a flat ~8,500 tokens for a book of any size. The user then approves a number that can be off by half or more, and nothing in the output looks wrong.
+
+So when `chapters_detected` is 0 or obviously disagrees with the source, do the Step 3 structure analysis **now**, before presenting the estimate, and use the count you derive from the table of contents and confirmed body chapters. Say which number you used and where it came from: "the script detected 0 chapters because this book numbers its sections rather than titling them 'Chapter N'; I mapped 6 from the table of contents and confirmed body text, then estimated on that."
+
 **How to estimate:**
 - Input tokens ≈ `estimated_tokens` from metadata × 1.3 (prompts overhead per chapter pass)
 - Output tokens ≈ chapters × per-chapter budget + 4,000 (SKILL.md) + 4,500 (glossary + patterns + cheatsheet)
@@ -253,6 +261,12 @@ Read the first 8,000 characters of the extracted `full_text.txt` to identify:
 - Approximate number of chapters
 
 Then read the Table of Contents section if present to map all chapters.
+
+**Treat the ToC as a claim about the book, not as the book.** Two things routinely go wrong, and both are silent:
+
+- **An entry may resolve to nothing.** A ToC row is just a line of text with a page number; extraction can drop the section it points at (a front/back-matter page the extractor skipped, an image-only spread, a PDF whose final pages linearize into boilerplate). Before you commit to a chapter list, confirm each entry actually has body text — `grep -n -i "<entry title>"` and check for a hit *outside* the ToC block. If an entry appears only in the ToC, it does not exist as far as you are concerned. Treat page gaps, phantom entries, and duplicate hits the same way: do not write a chapter for them and do not reconstruct one from the title, which is fabrication dressed as extraction (Quality Rule 7). Record the gap in the generated SKILL.md's Scope & Limits so the reader knows the book has a section your skill does not cover.
+
+- **Not every top-level entry is a chapter.** Front and back matter (Introduction, Preface, Foreword, Conclusion, Afterword, Appendix) often sit at the same indent level as numbered sections. Chapters should be the numbered or clearly parallel body sections. When unnumbered matter carries real content — an Introduction that states the book's core principles, say — fold that content into SKILL.md's Core Frameworks rather than minting a `ch00`, because a reader looking for those principles will look in the front matter of your skill too. When it carries only throat-clearing, drop it.
 
 **If mode is "Analyze Only":** produce the extraction report now and stop. Structure:
 ```

@@ -120,7 +120,7 @@ fingerprints:
   rule_id: AST4
   file: tools/stage_scan_input.py
   reason: 合理功能：自我掃描 gate 的暫存工具以 shell false 的 argv 陣列呼叫 git，只執行唯讀的 ls-files 取得檔案清單與 index 行尾；子命令為程式內常數，repo 路徑來自 dev_check.ps1 自身位置。
-- hash: sha256:6ff35639e7d7bf617bbc4d3bdf5b55e77b91e4e9b5e0697fea6a4cb878c2fc77
+- hash: sha256:e65b8d08c724638c06b059a3350d2b03c586957edbf5f4660b0a4a05f0612b43
   rule_id: LP3
   file: SKILL.md
   reason: 已人工審查：allowed-tools 刻意不寫死以維持多 host 相容；可見文件只宣告 shell 與檔案讀寫需求，各 host 仍在實際呼叫時執行授權。
@@ -152,11 +152,11 @@ fingerprints:
   rule_id: SC4
   file: requirements-security.txt
   reason: 已人工審查：SkillSpector 以 SanHsien fork 的精確 Git commit 釘定；OSV 無法從 PEP 508 VCS URL 推導版本而以名稱查詢舊漏洞，並不代表該 commit 含未修補版本。
-- hash: sha256:2147941b1a61b097c14e18d6e9bbe2d4390eccbcc06881dab7f163b77280b56b
+- hash: sha256:16f3dded782964714dd9537f6f48c12c16fd9e42fd98604a75ee6fb2ff1b2170
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：文件明確禁止推送 upstream，並要求只推 SanHsien origin；這是安全邊界說明，不是參數濫用指令。
-- hash: sha256:0b7574c0ae6d9c20d6716133529e0c39ed3967db9def0fb621eeb03b9ffb4536
+- hash: sha256:96291b739f333c8b2b3ff241000b06a5e0ffdfa29fdf2fce5dc9debf6aed34c7
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：同一段禁止推送 upstream 的 normalized view；沒有執行路徑，且保留此文字能防止誤推母 repo。
@@ -168,15 +168,15 @@ fingerprints:
   rule_id: YR4
   file: tests/test_scan_generated_skill.py
   reason: 已人工審查：測試組合 prompt override、authority mutation、外傳與 Unicode 隱藏字元，目的是驗證 generated-skill scanner 全部攔截。
-- hash: sha256:672d6b66f19edd3996c260c72a0285703fe1e3146c19d4cd13b434f9e63f7166
+- hash: sha256:62ad89a4e2d22c857f9659ab709c3674a390d38f7e765a1f22dbfb0e69db6214
   rule_id: AS3
   file: SKILL.md
   reason: 自我指涉：Step 10 的 `mkdir -p "$HOME/.claude/skills"` 是為產出的 skill 建立安裝目錄並放入連結，不是執行期列舉或讀取其他已安裝 skill 的內容。
-- hash: sha256:2e13a25d1a2df9d64ea194b214dd9d35d0c765418af009ba1a15d3f60e7d6c62
+- hash: sha256:3795d1a098f5b3058f6ed13a5225a22a51f710263ad2bc9a7e28fc60ee8bb95c
   rule_id: RA2
   file: SKILL.md
   reason: 誤判：RA2 的持久化樣式比對 create／mkdir 後接 `~/.` 開頭的隱藏目錄，而 Step 5 這段講的是個人安裝預設落在跨 agent 根目錄 `~/.agents/skills`、不存在時才建立。這是安裝位置說明，沒有 cron、開機腳本或跨 session 狀態。
-- hash: sha256:2887c926c184d38f0ed025eb08e0251bd07b2c91c6135a828c3f8cc7f7505296
+- hash: sha256:455423c80d80a9a12e698d831139ce2a5595c2a3e91969dd32ce1aa0d6145d2d
   rule_id: RA2
   file: SKILL.md
   reason: 誤判：同一條持久化樣式在 Step 10 命中建立 `~/.claude/skills` 連結目錄的說明。連結只是讓 Claude Code 看得到已安裝的 skill，使用者可自行刪除；沒有排程、開機項目或背景行程。

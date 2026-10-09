@@ -323,3 +323,42 @@ rug-pull 風險。安全回歸測試仍保留 prompt injection 與 `.env` 外傳
 - issue `#254`（technical 模式在 Docling 執行期失敗時靜默退回 pdftotext，metadata 仍標 technical）：open、尚無修正 PR；跟隨上游，觸發條件＝上游出現修正 commit。
 
 水位：commit `c108d25`（完整 SHA 見 baseline）、PR `253`、issue `254`。日期 2026-09-30。
+
+## 2026-10-08：選擇性採用 PR #126 的章節估價與 ToC 核對指引
+
+**決定**：從本機 `pr-126` commit `542446548d655fa4db0cbac84f676cea21120520` 選擇性採用兩段產品指引：
+
+- Step 2.5 估價前先核對 metadata 的 `chapters_detected`；若為零或明顯不符（例如 numbered sections 或被攤平的 PDF），先做 Step 3 結構分析，以 ToC 與已確認的正文章節估算，並說明 count source，避免把成本壓成約 8,500 tokens。
+- Step 3 把 ToC 視為候選清單；逐條確認 ToC 條目在 ToC 區塊外有正文。缺頁、phantom 或 duplicate 命中不建立章節；缺口記進產生技能的 Scope & Limits。
+
+**不採用**：PR 同一 commit 的舊 workdir 路徑與 destination gate。現行 `main` 已有替代契約，不能把舊版本整段移植；本次不改抽取器、工作目錄、輸出資料或使用者確認流程。
+
+## 2026-10-08：文件 parser 安全修補版本
+
+**決定**：將 optional PDF parser 固定由 `pypdf==6.18.1` 升至 `6.19.0`，
+technical parser 固定由 `docling==2.126.0` 升至 `2.132.0`；`pdf`、`technical` 與
+`all` extras 同步，Python 3.10+ marker 不變。
+
+**理由**：OSV 的 `GHSA-php9-fj8v-98fj`、`GHSA-v247-6f48-mgcj` 與
+`GHSA-w23x-9jrw-r45c` 均要求 pypdf 至少 `6.19.0`，分別修正 appearance streams、
+embedded files 與 alphabetical page labels 的資源耗盡風險。Docling 的
+`GHSA-p3fw-7699-7926`、`GHSA-pc36-qwjq-x68c` 與 `GHSA-x3q2-h9hx-4r4j` 均要求至少
+`2.132.0`，涵蓋遠端資源 header 洩漏、SSRF 防護繞過與 opt-in Tectonic 路徑的
+不可信 TikZ 處理風險。這是公告的最小修補版本；未因 PyPI 已有 Docling `2.135.0`
+而擴大升級範圍。
+
+**驗證界線**：只安裝 optional packages 並驗證解析出的版本與既有 unit/gate；不執行
+technical mode，因此不下載 Docling 模型、不宣稱真實技術 PDF 的整合驗收。
+
+## 2026-10-09：安全修補與精準 baseline 重新審查
+
+OSV API 已核對上述六個 GHSA 的修補界線；本機 pypdf `6.19.0` 與 Docling
+`2.132.0` 的版本查詢均無已知公告。加入人工產生的小型 PDF 文字抽取與本機
+Markdown 的 Docling 轉換測試，並載入 technical PDF 使用的 option types；後者
+不啟動 PDF 模型，因此仍不代表 technical PDF 的完整整合驗收。
+
+v2 fingerprint 綁定完整檔案。PR #126 的兩段既有指引與決策新增造成六筆已審
+誤報 hash 漂移，逐筆重新審查後只刷新精準 hash：LP3 是跨 host 的權限宣告取捨；
+RA2 的兩處是安裝根目錄與 cleanup 到 link 的文件上下文，無排程或開機程式；
+AS3 是建立 Claude Code 的連結目錄，沒有讀取其他 skill；TM1 的兩個 normalized
+view 均是禁止推送上游的安全邊界。保留既有理由與所有規則，不 suppress 依賴漏洞。

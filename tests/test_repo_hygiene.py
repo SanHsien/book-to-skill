@@ -101,16 +101,18 @@ def test_docx_zipfile_parser_does_not_use_stdlib_etree():
     assert "defusedxml.ElementTree" in source
 
 
-def test_optional_document_parsers_have_security_version_floors():
-    """Untrusted documents resolve to reviewed versions, with honest Python markers."""
+def test_optional_document_parsers_pin_reviewed_security_releases():
+    """Untrusted document parsers stay on the reviewed security releases."""
     pyproject = (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
     for requirement in (
-        '"pypdf==6.18.1"',
+        '"pypdf==6.19.0"',
         '"pdfminer.six==20260107; python_version >= \'3.10\'"',
         '"python-docx==1.2.0"',
-        '"docling==2.126.0; python_version >= \'3.10\'"',
+        '"docling==2.132.0; python_version >= \'3.10\'"',
     ):
         assert requirement in pyproject
+    assert pyproject.count('"pypdf==6.19.0"') == 2
+    assert pyproject.count('"docling==2.132.0; python_version >= \'3.10\'"') == 2
 
 
 def test_fresh_clone_gate_uses_the_pinned_security_scanner():
