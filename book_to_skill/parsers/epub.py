@@ -7,7 +7,7 @@ import sys
 import zipfile
 from urllib.parse import unquote, urlsplit
 
-from book_to_skill.parsers.html import _HTMLTextExtractor
+from book_to_skill.parsers.html import _HTMLTextExtractor, text_from_soup
 
 
 _IMAGE_EXTENSIONS = (
@@ -44,10 +44,35 @@ def extract_with_ebooklib(epub_path: str) -> str | None:
         from bs4 import BeautifulSoup
 
         book = epub.read_epub(epub_path)
+        documents = list(book.get_items_of_type(ebooklib.ITEM_DOCUMENT))
+        ordered_items = []
+        seen = set()
+        for spine_entry in getattr(book, "spine", ()) or ():
+            if isinstance(spine_entry, (tuple, list)):
+                item_id = spine_entry[0] if spine_entry else None
+            else:
+                item_id = spine_entry
+            if not isinstance(item_id, str):
+                continue
+            item = book.get_item_with_id(item_id)
+            if item is None or item.get_type() != ebooklib.ITEM_DOCUMENT:
+                continue
+            item_identity = id(item)
+            if item_identity not in seen:
+                ordered_items.append(item)
+                seen.add(item_identity)
+
+        for item in documents:
+            if id(item) not in seen:
+                ordered_items.append(item)
+                seen.add(id(item))
+
         parts = []
-        for item in book.get_items_of_type(ebooklib.ITEM_DOCUMENT):
+        for item in ordered_items:
             soup = BeautifulSoup(item.get_content(), "html.parser")
-            parts.append(soup.get_text(separator="\n"))
+            for element in soup(["script", "style", "head"]):
+                element.decompose()
+            parts.append(text_from_soup(soup))
         return "\n\n".join(parts)
     except ImportError:
         return None

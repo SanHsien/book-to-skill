@@ -29,6 +29,27 @@ jobs:
       - name: Run test suite
         run: pytest tests/ -q
 
+  test-optional-parsers:
+    name: optional parsers (py3.12)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install declared optional parsers without Docling models
+        run: python -m pip install pytest -e ".[html,epub,docx,pdf,rtf]"
+      - name: Require preferred parser dependencies
+        run: python -c "import bs4, ebooklib, docx, trafilatura, pypdf, defusedxml"
+      - name: Exercise generated preferred-parser fixtures
+        run: >-
+          python -m pytest tests/test_preferred_parser_adoption.py
+          tests/test_html_inline_continuity.py tests/test_html_boilerplate_extraction.py
+          tests/test_parser_security_compatibility.py -q
+
   test-windows:
     name: test (windows / py3.12)
     runs-on: windows-latest

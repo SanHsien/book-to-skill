@@ -72,15 +72,15 @@ fingerprints:
   rule_id: AST4
   file: book_to_skill/parsers/calibre.py
   reason: 合理功能：本工具的核心功能就是呼叫外部轉檔程式（pdftotext、ebook-convert）進行文件解析，以及內部維運腳本呼叫 git／gh 檢查上游狀態；參數皆為固定字面值或程式內驗證過的路徑，不會拼接任意使用者輸入。
-- hash: sha256:7b307d2c15a32f562bd2ba2a07838e105d0c8b1b5603979e8fd97432c0c922a3
+- hash: sha256:82be626cc3e79362dbe52127a652ce8acb8d358c68df5933712d39bbf361375b
   rule_id: AST4
   file: book_to_skill/parsers/pdf.py
   reason: 合理功能：本工具的核心功能就是呼叫外部轉檔程式（pdftotext、ebook-convert）進行文件解析，以及內部維運腳本呼叫 git／gh 檢查上游狀態；參數皆為固定字面值或程式內驗證過的路徑，不會拼接任意使用者輸入。
-- hash: sha256:91df00b5b72c32ff80dbc1992803f60533d52c9b15c79d8806ec49cf50552277
+- hash: sha256:e59fbdfd2868bd3650d703e6acf40d5a4b854d018ebb93fa1725a211c93b48b3
   rule_id: AST4
   file: book_to_skill/parsers/pdf.py
   reason: 合理功能：本工具的核心功能就是呼叫外部轉檔程式（pdftotext、ebook-convert）進行文件解析，以及內部維運腳本呼叫 git／gh 檢查上游狀態；參數皆為固定字面值或程式內驗證過的路徑，不會拼接任意使用者輸入。
-- hash: sha256:14c5625a709271276fdb686a5514dafc407dfc642a7d185c164e4703b1785c39
+- hash: sha256:ae3f83fa93cc98e4ee7efb441fba584a23d4d6736854bbfb157d663e83f7ec38
   rule_id: AST4
   file: book_to_skill/parsers/pdf.py
   reason: 合理功能：本工具的核心功能就是呼叫外部轉檔程式（pdftotext、ebook-convert）進行文件解析，以及內部維運腳本呼叫 git／gh 檢查上游狀態；參數皆為固定字面值或程式內驗證過的路徑，不會拼接任意使用者輸入。
@@ -124,7 +124,7 @@ fingerprints:
   rule_id: LP3
   file: SKILL.md
   reason: 已人工審查：allowed-tools 刻意不寫死以維持多 host 相容；可見文件只宣告 shell 與檔案讀寫需求，各 host 仍在實際呼叫時執行授權。
-- hash: sha256:ce797014e39fc081bb7f9b44451cc26eb45ba5d80cb2b861e222377b66dab33b
+- hash: sha256:36143a1b21e172404b4bb64e2136b49669cbaf95f2e8f455780b6ab978c72541
   rule_id: AS3
   file: README.en.md
   reason: 自我指涉：README／docs/install.md 列出各 agent host 的 skills 目錄路徑（~/.claude/skills/ 等）是安裝說明，不是執行期間列舉或讀取其他已安裝 skill 的內容。
@@ -152,11 +152,11 @@ fingerprints:
   rule_id: SC4
   file: requirements-security.txt
   reason: 已人工審查：SkillSpector 以 SanHsien fork 的精確 Git commit 釘定；OSV 無法從 PEP 508 VCS URL 推導版本而以名稱查詢舊漏洞，並不代表該 commit 含未修補版本。
-- hash: sha256:3e8f3e7e603cf78143c936f522c6940cbc46471bd94518562d58b03574a05371
+- hash: sha256:a49913d3fb1bc2c302816a8bfac3bf251526fadec5dd77dc05933266944fc0c2
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：文件明確禁止推送 upstream，並要求只推 SanHsien origin；這是安全邊界說明，不是參數濫用指令。
-- hash: sha256:3cf76dac59f4c26d0ca4c065025b2156226eed0cd476d32c921b8ecfd94d736c
+- hash: sha256:119dd25eb90ba9a896f2b5fa8ede0532cdb0be4f8f0f2112b3d6fc8855268158
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：同一段禁止推送 upstream 的 normalized view；沒有執行路徑，且保留此文字能防止誤推母 repo。

@@ -5,6 +5,31 @@ import sys
 from book_to_skill.exceptions import ExtractionError
 
 
+def _docx_inline_text(elem) -> str:
+    ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+    parts = []
+    for node in elem.iter():
+        if node.tag == f"{ns}t" and node.text:
+            parts.append(node.text)
+        elif node.tag == f"{ns}tab":
+            parts.append("\t")
+        elif node.tag in {f"{ns}br", f"{ns}cr"}:
+            parts.append("\n")
+    return "".join(parts)
+
+
+def _docx_sdt_text_fragments(docx_path: str) -> list[str]:
+    # 僅在 archive 安全檢查通過後呼叫，第二 XML 路徑仍用 defusedxml。
+    from defusedxml.ElementTree import fromstring
+    with zipfile.ZipFile(docx_path) as archive:
+        root = fromstring(archive.read("word/document.xml"))
+    ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+    return [
+        text for sdt in root.iter(f"{ns}sdtContent")
+        if (text := " ".join(_docx_inline_text(sdt).split()))
+    ]
+
+
 def extract_docx_with_python_docx(docx_path: str) -> str | None:
     # Called unconditionally (not just via extract_docx()) so this function is
     # self-defending when invoked directly WITH python-docx installed:
@@ -21,13 +46,24 @@ def extract_docx_with_python_docx(docx_path: str) -> str | None:
     try:
         import docx
         validate_docx_xml_safety(docx_path)
+        if _docx_sdt_text_fragments(docx_path):
+            # python-docx may omit SDT blocks. Matching text elsewhere cannot
+            # prove coverage or preserve repeated blocks and document order.
+            return None  # 有文字的 SDT 一律交由安全 zip parser。
         document = docx.Document(docx_path)
-        parts = [paragraph.text for paragraph in document.paragraphs if paragraph.text]
-        for table in document.tables:
-            for row in table.rows:
-                cells = [cell.text.strip() for cell in row.cells]
-                if any(cells):
-                    parts.append("\t".join(cells))
+        iterator = getattr(document, "iter_inner_content", None)
+        if iterator is None:
+            return None  # 舊套件無法保證段落／表格順序，交由安全 fallback。
+        from docx.table import Table
+        parts = []
+        for block in iterator():
+            if isinstance(block, Table):
+                for row in block.rows:
+                    cells = [cell.text.strip() for cell in row.cells]
+                    if any(cells):
+                        parts.append("\t".join(cells))
+            elif block.text:
+                parts.append(block.text)
         return "\n".join(parts)
     except ImportError:
         return None
@@ -60,18 +96,6 @@ def extract_docx_with_zipfile(docx_path: str) -> str | None:
         ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
         parts: list[str] = []
 
-        def inline_text(elem) -> str:
-            """Rebuild text runs without dropping explicit DOCX separators."""
-            text_parts: list[str] = []
-            for node in elem.iter():
-                if node.tag == f"{ns}t" and node.text:
-                    text_parts.append(node.text)
-                elif node.tag == f"{ns}tab":
-                    text_parts.append("\t")
-                elif node.tag in {f"{ns}br", f"{ns}cr"}:
-                    text_parts.append("\n")
-            return "".join(text_parts)
-
         def emit_block(elem) -> None:
             # Walk block content in document order. Paragraphs join their runs;
             # tables emit one tab-joined line per row (same row format as the
@@ -85,14 +109,14 @@ def extract_docx_with_zipfile(docx_path: str) -> str | None:
             for child in elem:
                 tag = child.tag
                 if tag == f"{ns}p":
-                    paragraph = inline_text(child)
+                    paragraph = _docx_inline_text(child)
                     if paragraph:
                         parts.append(paragraph)
                 elif tag == f"{ns}tbl":
                     for row in child.iter(f"{ns}tr"):
                         cells = []
                         for cell in row.iter(f"{ns}tc"):
-                            cells.append(inline_text(cell).strip())
+                            cells.append(_docx_inline_text(cell).strip())
                         if any(cells):
                             parts.append("\t".join(cells))
                 else:

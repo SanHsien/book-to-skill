@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <strong>把技術書、文件資料夾或一組來源，轉成可按需載入的 Agent 技能 — 給 GitHub Copilot CLI、Amp 與 Claude Code 在工作中直接查、直接用。</strong>
+  <strong>把技術書、文件資料夾或一組來源，轉成可按需載入的 Agent 技能 — 給 GitHub Copilot CLI、Amp、Codex 與 Claude Code 在工作中直接查、直接用。</strong>
 </p>
 
 <p align="center">
@@ -64,7 +64,7 @@
 
 裝好之後，輸入 `/your-book-slug replication`，Agent 會讀對應章節、依實際內容回答。不用翻 PDF，也不用把整本書每次都塞進對話。
 
-任何支援開放 [Agent Skills](https://github.com/agentskills/agentskills) 標準的宿主都能用同一份 `SKILL.md`：GitHub Copilot CLI、Amp、Claude Code。
+任何支援開放 [Agent Skills](https://github.com/agentskills/agentskills) 標準的宿主都能用同一份 `SKILL.md`：GitHub Copilot CLI、Amp、Codex、Claude Code。
 
 ---
 

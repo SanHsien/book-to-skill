@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <strong>Turn any technical book, document folder, or collection of sources into a unified agent skill — ready to study, reference, and use while you work in GitHub Copilot CLI, Amp, or Claude Code.</strong>
+  <strong>Turn any technical book, document folder, or collection of sources into a unified agent skill — ready to study, reference, and use while you work in GitHub Copilot CLI, Amp, Codex, or Claude Code.</strong>
 </p>
 
 > **This repository is a Windows-first maintenance fork** of [`virgiliojr94/book-to-skill`](https://github.com/virgiliojr94/book-to-skill), kept under the MIT License with full git history. Product behaviour stays with upstream; this line adds Traditional Chinese docs, a Windows development gate, and reviewed upstream tracking. See [`FORK.md`](FORK.md).
@@ -69,7 +69,7 @@ The usual workarounds don't help:
 
 Once installed, you just type `/your-book-slug replication` and the agent reads the right chapter and answers from the actual content. No hallucination. No digging through PDFs. The book becomes part of your workflow.
 
-Works with any host that supports the open [Agent Skills](https://github.com/agentskills/agentskills) standard — GitHub Copilot CLI, Amp, and Claude Code all read the same `SKILL.md` format.
+Works with any host that supports the open [Agent Skills](https://github.com/agentskills/agentskills) standard — GitHub Copilot CLI, Amp, Codex, and Claude Code all read the same `SKILL.md` format.
 
 ---
 

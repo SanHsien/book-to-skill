@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import unicodedata
+
 
 # Invisible code points used to hide document-borne prompt injection. Grouped by
 # attack shape so the reasoning behind each entry stays reviewable.
@@ -74,11 +76,26 @@ _ANNOTATION_FORMAT_CODEPOINTS = frozenset({
     0xFFFB,  # INTERLINEAR ANNOTATION TERMINATOR
 })
 
+# 精確列舉不可見載體，保留鄰近可見字元與有語義的 Cf。
+_DEFAULT_IGNORABLE_CARRIER_CODEPOINTS = frozenset({
+    0x180B,   # MONGOLIAN FREE VARIATION SELECTOR ONE
+    0x180C,   # MONGOLIAN FREE VARIATION SELECTOR TWO
+    0x180D,   # MONGOLIAN FREE VARIATION SELECTOR THREE
+    0x180F,   # MONGOLIAN FREE VARIATION SELECTOR FOUR (assigned in Unicode 14.0)
+    0x17B4,   # KHMER VOWEL INHERENT AQ
+    0x17B5,   # KHMER VOWEL INHERENT AA
+    0x1BCA0,  # SHORTHAND FORMAT LETTER OVERLAP
+    0x1BCA1,  # SHORTHAND FORMAT CONTINUING OVERLAP
+    0x1BCA2,  # SHORTHAND FORMAT DOWN STEP
+    0x1BCA3,  # SHORTHAND FORMAT UP STEP
+})
+
 _INVISIBLE_CODEPOINTS = (
     _ZERO_WIDTH_CODEPOINTS
     | _BIDI_CONTROL_CODEPOINTS
     | _INVISIBLE_LETTER_CODEPOINTS
     | _ANNOTATION_FORMAT_CODEPOINTS
+    | _DEFAULT_IGNORABLE_CARRIER_CODEPOINTS
 )
 
 # 4. The Unicode tag block. Originally language tags, now used to smuggle an
@@ -115,6 +132,15 @@ _ANNOTATION_CODEPOINTS = frozenset({
 _MUSICAL_FORMAT_RANGE = (0x1D173, 0x1D17A)
 
 
+# 僅折疊康熙部首，不改其他相容字元，也不增加移除計數。
+_KANGXI_RADICAL_RANGE = (0x2F00, 0x2FDF)
+_KANGXI_RADICAL_FOLD = {cp: unicodedata.normalize("NFKC", chr(cp)) for cp in range(0x2F00, 0x2FE0)}
+
+
+def fold_cjk_radicals(text: str) -> str:
+    return text.translate(_KANGXI_RADICAL_FOLD)
+
+
 def is_invisible_codepoint(codepoint: int) -> bool:
     """Return True if the code point renders as nothing and should be stripped.
 
@@ -136,7 +162,7 @@ def sanitize_extracted_text(text: str) -> tuple[str, int]:
     kept: list[str] = []
     removed = 0
 
-    for character in text:
+    for character in fold_cjk_radicals(text):
         if is_invisible_codepoint(ord(character)):
             removed += 1
             continue

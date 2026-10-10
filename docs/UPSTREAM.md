@@ -338,3 +338,59 @@ pattern 在本 fork 的主要平台上等於全部失效（舊的 `\s*$` 是靠 
 
 **判準補一條**：PR 與 issue 一律用 `--state all` 查。一個項目在兩次檢查之間被開了又關，對本 fork
 來說仍然是「從來沒有被審過」。
+
+
+## 2026-10-10：有限修復窗口
+
+範圍固定：8 commits、20 PR、12 issues，commit 至 `e180fc46365e8c1aab0120778cc8a40b9515324b`、PR #286、issue #283。逐筆來源 diff／issue body 證據已審；以下採用均是保留 fork 契約的最小重做，待獨立審查後才能發布。非本窗口的新項目留待下一輪。
+
+### commits
+
+- `c4ef3e60d713218fc3731b119e4ee656f1c993a4`：已實作且本機分段驗證完成，待獨立審查。新增10個Default_Ignorable carriers，目前 sanitize._INVISIBLE_CODEPOINTS 不含，scanner 共用 predicate 亦缺。採精確 set union + visible neighbours/script preservation + scanner alignment tests；不得 blanket Cf filter。
+- `dea2432bc39ee196d0518376d85f1267627f5dae`：已實作且本機分段驗證完成，待獨立審查。上游 optional-deps dedicated test leg。fork CI 獨立且 Windows gate 只有核心deps+scanner，沒有 explicit bs4/trafilatura optional leg；這輪 preferred parser bugs 和 importorskip 證明欠 coverage。最小新增 Ubuntu3.12 optional-parser test leg，保留原3.9..3.13、Windows security、dependency-free smoke，不覆蓋整份上游CI；只安裝相容已審核 extra/test libs，不 Docling model下載。
+- `bf16dcd0d245e3242d07356d37430f9e9c389a01`：不採用。Gujarati 已在9/30逐筆排除；只新增新語系regex/digit map，現行支援scope不變。revisit: Gujarati source demand。
+- `735e48d616987ac29845e2b47c631f2eb3c3a238`：已實作且本機分段驗證完成，待獨立審查。framing whole-title filter + structural samples，main _structural_chapter_count 仍無framing exclusions。與#245/#246/#279/#273成組最小移植，避免 generic part prefix 濾掉 instructional titles。
+- `fe3f78618d09808b071edd50941c6866ac256494`：不採用。Odia regex/digit-map 新語系功能，延續本 fork 繁中/英文主範圍；非目前保證行為的修復。若使用者提供 Odia 來源並要求支援再採用。
+- `c2751f5328738c1272138dcbf4f05218932fc0e7`：已實作且本機分段驗證完成，待獨立審查。utils.main:1289 使用 OUTPUT_TEXT.write_text 會做 Windows newline translation。改 with open(w,encoding=utf-8,newline=\n)；保留來源現有 LF/CRLF，加入 byte-level CRCRLF negative control、setext adjacency、metadata chars 與 persisted logical structure。
+- `313bf68a67005a77a4d90abbfcebfa40012e9648`：已實作且本機分段驗證完成，待獨立審查。DOCX preferred path:25 分開 document.paragraphs 與 document.tables 導致表格移到文件最後，stdlib emit_block 已按順序但不修 preferred。採 ordered iter_inner_content，舊 library 缺 iterator 時回 None 到既有安全 fallback；保留 validate_docx_xml_safety、ExtractionError 不吞。
+- `e180fc46365e8c1aab0120778cc8a40b9515324b`：不採用。實際 diff 只改 README.ru.md/README.zh-CN.md 的 shared destination 與 translation-meta；AGENTS 禁止恢復這些第三語系。README.md:73 與 README.en.md:78 已有 shared ~/.agents/skills、Codex、Windows junction 與讀回驗證，不直接拷貝額外 OpenClaw/Hermes 宣稱。
+
+### prs
+
+- `255`：已實作且本機分段驗證完成，待獨立審查。technical fallback 缺陷；pdf.extract_with_docling 現在吞 runtime exception，utils 無 fallback_reason。保留模型下載警告，把 import unavailable 與 runtime failure 分開，在 extraction boundary 記錄 failed/unavailable/empty 並保留原請求 technical 與實際 extraction_method。
+- `256`：不採用。Odia regex/digit-map 新語系功能，延續本 fork 繁中/英文主範圍；非目前保證行為的修復。若使用者提供 Odia 來源並要求支援再採用。
+- `262`：不採用。實際 diff 只改 README.ru.md/README.zh-CN.md 的 shared destination 與 translation-meta；AGENTS 禁止恢復這些第三語系。README.md:73 與 README.en.md:78 已有 shared ~/.agents/skills、Codex、Windows junction 與讀回驗證，不直接拷貝額外 OpenClaw/Hermes 宣稱。
+- `264`：已實作且本機分段驗證完成，待獨立審查。utils.main:1289 使用 OUTPUT_TEXT.write_text 會做 Windows newline translation。改 with open(w,encoding=utf-8,newline=\n)；保留來源現有 LF/CRLF，加入 byte-level CRCRLF negative control、setext adjacency、metadata chars 與 persisted logical structure。
+- `265`：已實作且本機分段驗證完成，待獨立審查。DOCX preferred path:25 分開 document.paragraphs 與 document.tables 導致表格移到文件最後，stdlib emit_block 已按順序但不修 preferred。採 ordered iter_inner_content，舊 library 缺 iterator 時回 None 到既有安全 fallback；保留 validate_docx_xml_safety、ExtractionError 不吞。
+- `266`：已實作且本機分段驗證完成，待獨立審查。preferred ebooklib loop 使用 manifest get_items_of_type；stdlib 的 OPF spine_order 已正確但未覆蓋 preferred。先解析 tuple/string spine id、只接受 ITEM_DOCUMENT、dedup identity，再 append 非 spine 文件，無 spine 維持 manifest 順序。與 #276 合併成同一 ordered-item text extraction。
+- `267`：延後。本 fork HEAD 不存在 reuse_is_safe/_sha256_file、tests/test_fingerprint.py 或自動 run reuse，#224 原始功能仍 adoption pending。這個補丁不能單獨貼入，也不是已啟用 helper 的已存在漏洞。若引進 #224，必須同次整合 ordered (filename,hash) multiplicity、reorder rejection 與 #275 output integrity，不能先發布不安全 reuse。
+- `269`：延後。新 advisory fidelity 工具非抽取器修復；實際 implementation 以 positions[:5] 截斷 search，可能漏第六個起點的長重複；page_starts 以 raw source offsets 建立，match offset 卻是 normalized，頁碼會錯；source read 無 size cap，重複輸入成本尚未定界。revisit: bounded source/CPU、完整 longest semantics 或 honest approximate label、normalized page mapping 的 regressions，再單獨導入。
+- `270`：已實作且本機分段驗證完成，待獨立審查。preferred python-docx 仍忽略 SDT content controls，stdlib emit_block recursive wrapper handling 可抽出。最低修法在安全驗證後偵測 SDT fragment coverage，比較兩路實際內容；不可只以 output length 取勝，也不得新引入未經 defusedxml 的第二 XML parser。將 _docx_inline_text 共用，reuse defusedxml；保留一次驗證契約並加 SDT table/paragraph order 與 XXE controls。
+- `273`：已實作且本機分段驗證完成，待獨立審查。main:1304 joined source text 重掃 H1 book titles 選成 chapter depth。對各 source 已判 structural 且>=2 的章節加總/串接 samples；先補 #245 每 source chapter_headings_sample、#253 structural samples。保留 single source、numeric book、mixed numeric/structural 舊政策。
+- `275`：延後。同 #267 缺 #224 reuse foundation。若啟用 reuse 必须 streamed byte digest 在 corpus close 後計算、output regular/readable/nonempty、resolve confinement 在 hashing 前、legacy 無 digest 禁 resume；不把 metadata claims 當完整性。與 #267 合併採用；現有 fresh extraction 流程未呼叫不安全 helper。
+- `276`：已實作且本機分段驗證完成，待獨立審查。html.extract_html_content/epub.extract_with_ebooklib 仍 soup.get_text(separator=\n) 切斷 inline heading/token；stdlib _HTMLTextExtractor 已保留 inline 但 _pre_depth 未存在，leading indentation 仍被 pending whitespace 丟掉。共用 filtered-soup serialization -> existing HTML parser；新增 pre-depth whitespace preservation，不改变 trafilatura first choice。與 #266 spine ordering 同改。
+- `277`：已實作且本機分段驗證完成，待獨立審查。sanitize.py 無 fold_cjk_radicals；繁中核心檢索受 Kangxi glyph codepoints 影響。只針對 U+2F00..2FDF NFKC translate，其他 fullwidth/circled digits/compat ideographs 不動，removed invisible count 不增加；U+2E80 supplement 不猜映射。採 scoped normalization 與 preservation regression，文件用繁中。
+- `278`：已實作且本機分段驗證完成，待獨立審查。README.md/en 的 destination paragraph 已含 Codex，但 prominent introduction/host lists 和 docs/index metadata 未完整列出。最小補 Codex 到實際已支援的雙語 lists、docs metadata；不引進未測 Hermes/OpenCode/OpenClaw support claim、不覆蓋 fork frontmatter/domain gate；測試改對 fork bilingual contract。
+- `279`：已實作且本機分段驗證完成，待獨立審查。Part I/II 現在 numeric_count>0 直接 short circuit structural，造成十章只數兩 Part。成組 #246+#253+#279：separate part bucket、whole-title framing filter、只有無章節證據時保留 Part-only fallback， instructional Part titles 仍算 chapters。維持真正 numeric chapters；連同 #273 multi-source。
+- `280`：不採用。Punjabi/Gurmukhi regex、digit-map 與新語系 tests；與 Gujarati/Odia 同類且需要額外 Gujarati upstream matcher。本 fork未承諾該語系。revisit: 明確使用者來源與支援要求。
+- `281`：不採用。README.ru localization + tests/test_translation_drift 指定 ru/zh-CN、upstream pinned translation source；與 fork 僅繁中/英文政策衝突。不恢復第三語系；雙語 destination 政策已有本地獨立規格。revisit: 維護者正式增加語系。
+- `284`：不採用。只修 tools/evals/score._count 負數usage 與 research/evals tests；本 fork沒有 tools/evals/tests/evals，既有 #185/#200/#225 eval 排除政策仍成立。revisit: 明確加入 evaluation subsystem 後連同 usage data validation 導入。
+- `285`：不採用。Sinhala 新語系 regex/digit remap，與 #256/#280 相同非目前範圍；注意 upstream 已與 sanitize 去ZWJ 相容但仍不代表本fork承諾。revisit: 使用者 Sinhala source 需求。
+- `286`：不採用。只修 experiment paper_flat._chunks prefix loss，本 fork沒有該 eval builder；不是本地 extraction corpus prefix loss。revisit: 正式導入 eval paper-flat 時必須同時採用 prefix conservation regression。
+
+### issues
+
+- `257`：已實作且本機分段驗證完成，待獨立審查。preferred ebooklib loop 使用 manifest get_items_of_type；stdlib 的 OPF spine_order 已正確但未覆蓋 preferred。先解析 tuple/string spine id、只接受 ITEM_DOCUMENT、dedup identity，再 append 非 spine 文件，無 spine 維持 manifest 順序。與 #276 合併成同一 ordered-item text extraction。
+- `258`：已實作且本機分段驗證完成，待獨立審查。DOCX preferred path:25 分開 document.paragraphs 與 document.tables 導致表格移到文件最後，stdlib emit_block 已按順序但不修 preferred。採 ordered iter_inner_content，舊 library 缺 iterator 時回 None 到既有安全 fallback；保留 validate_docx_xml_safety、ExtractionError 不吞。
+- `259`：延後。同 #267 缺 #224 reuse foundation。若啟用 reuse 必须 streamed byte digest 在 corpus close 後計算、output regular/readable/nonempty、resolve confinement 在 hashing 前、legacy 無 digest 禁 resume；不把 metadata claims 當完整性。與 #267 合併採用；現有 fresh extraction 流程未呼叫不安全 helper。
+- `260`：已實作且本機分段驗證完成，待獨立審查。utils.main:1289 使用 OUTPUT_TEXT.write_text 會做 Windows newline translation。改 with open(w,encoding=utf-8,newline=\n)；保留來源現有 LF/CRLF，加入 byte-level CRCRLF negative control、setext adjacency、metadata chars 與 persisted logical structure。
+- `261`：延後。本 fork HEAD 不存在 reuse_is_safe/_sha256_file、tests/test_fingerprint.py 或自動 run reuse，#224 原始功能仍 adoption pending。這個補丁不能單獨貼入，也不是已啟用 helper 的已存在漏洞。若引進 #224，必須同次整合 ordered (filename,hash) multiplicity、reorder rejection 與 #275 output integrity，不能先發布不安全 reuse。
+- `263`：已實作且本機分段驗證完成，待獨立審查。html.extract_html_content/epub.extract_with_ebooklib 仍 soup.get_text(separator=\n) 切斷 inline heading/token；stdlib _HTMLTextExtractor 已保留 inline 但 _pre_depth 未存在，leading indentation 仍被 pending whitespace 丟掉。共用 filtered-soup serialization -> existing HTML parser；新增 pre-depth whitespace preservation，不改变 trafilatura first choice。與 #266 spine ordering 同改。
+- `268`：已實作且本機分段驗證完成，待獨立審查。preferred python-docx 仍忽略 SDT content controls，stdlib emit_block recursive wrapper handling 可抽出。最低修法在安全驗證後偵測 SDT fragment coverage，比較兩路實際內容；不可只以 output length 取勝，也不得新引入未經 defusedxml 的第二 XML parser。將 _docx_inline_text 共用，reuse defusedxml；保留一次驗證契約並加 SDT table/paragraph order 與 XXE controls。
+- `271`：已實作且本機分段驗證完成，待獨立審查。Part I/II 現在 numeric_count>0 直接 short circuit structural，造成十章只數兩 Part。成組 #246+#253+#279：separate part bucket、whole-title framing filter、只有無章節證據時保留 Part-only fallback， instructional Part titles 仍算 chapters。維持真正 numeric chapters；連同 #273 multi-source。
+- `272`：已實作且本機分段驗證完成，待獨立審查。main:1304 joined source text 重掃 H1 book titles 選成 chapter depth。對各 source 已判 structural 且>=2 的章節加總/串接 samples；先補 #245 每 source chapter_headings_sample、#253 structural samples。保留 single source、numeric book、mixed numeric/structural 舊政策。
+- `274`：已實作且本機分段驗證完成，待獨立審查。sanitize.py 無 fold_cjk_radicals；繁中核心檢索受 Kangxi glyph codepoints 影響。只針對 U+2F00..2FDF NFKC translate，其他 fullwidth/circled digits/compat ideographs 不動，removed invisible count 不增加；U+2E80 supplement 不猜映射。採 scoped normalization 與 preservation regression，文件用繁中。
+- `282`：不採用。只修 experiment paper_flat._chunks prefix loss，本 fork沒有該 eval builder；不是本地 extraction corpus prefix loss。revisit: 正式導入 eval paper-flat 時必須同時採用 prefix conservation regression。
+- `283`：不採用。只修 tools/evals/score._count 負數usage 與 research/evals tests；本 fork沒有 tools/evals/tests/evals，既有 #185/#200/#225 eval 排除政策仍成立。revisit: 明確加入 evaluation subsystem 後連同 usage data validation 導入。
+
+歷史 #245／#246 已納入本輪章節批次；#224 reuse foundation 未導入，#267／#275 不可單獨採用。#229／#228／#222 的舊 adoption-pending 帳已核對現行源碼與對應回歸：Calibre 每次輸出使用 pid＋sequence 唯一路徑（test_calibre_stale_output.py 5 個案例）；getsize 的 OSError 轉為 ExtractionError（test_batch_resilience_unreadable.py，Windows 的 2 個 POSIX 權限案例 skipped）；5 個 entrypoints 禁止寫入 bytecode（test_no_bytecode_pollution.py）。既有 724 passed／8 skipped 全套涵蓋這些測試，本次 SDT 修改不觸及其源碼；此紀錄不代表實際 Calibre 外部程式或原生 POSIX 權限 live 驗證。

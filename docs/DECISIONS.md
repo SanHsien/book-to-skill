@@ -387,3 +387,17 @@ PDF 的 model-free NativePdfPipeline 回報 backend parse failure，尚未區分
 依既有 `.github/dependency-deferrals.json` 機制只延後 `2.136.0`，附實際 diff 與
 驗收缺口；PyPI 下一版會自動使延後失效。提前重評的條件是已有本機模型時，完成
 一次 bounded technical PDF 驗收。沒有建立永久 `freshness-hold` 或放寬任何 gate。
+
+
+## 2026-10-10：抽取器有限上游修復
+
+- 精確採用 #250 的 10 個不可見 carrier 與 #277 的康熙部首限定 NFKC；不改其他相容字元、CJK Supplement 或有語義的 Cf，正規化不增加 security removal count。
+- #245／#246／#253／#279／#273 成組採用：每來源保存 heading samples；closed fences／wrapped prose 不計章節；whole-title framing 過濾保留 instructional titles；Part 分組不遮蔽真正章節；僅無其他章節證據時才使用 Part-only fallback。Unit 仍依 fork 原本 structural 規則，不新增 upstream Unit numeric 語法；未採用新語系。
+- #264 corpus writer 明訂 newline=LF 禁止 Windows 轉譯，原始 LF／CRLF／CR 保留；metadata chars 依 UTF-8 實際內容。#255 區分 docling_failed／unavailable／empty，記錄 requested technical mode 與實際 parser；保留首次模型下載提示，不下載模型做驗收。
+- #265 DOCX preferred 使用 ordered iterator；舊套件缺 iterator 安全回退。#270 SDT 經 defusedxml 檢查；有文字即交既有安全 zipfile parser，避免相同文字／子字串誤判覆蓋而遺失重複段落與順序；DOCTYPE／ENTITY 拒絕與 leaf 自我防護保留。
+- #266 EPUB preferred 依 spine 排序，只接受 document item，無效 refs 忽略、重複 identity 去除，其他文件各補一次。#276 BeautifulSoup 共用既有 HTML text parser，保留 inline tokens／pre indentation／表格與段落界線；trafilatura 優先路徑不變。
+- #251 加獨立 optional-parser CI leg，明確要求 bs4／ebooklib／python-docx／trafilatura／pypdf／defusedxml installed，再跑人工生成 DOCX／EPUB／HTML／PDF fixtures。保留 Python 3.9–3.13、Windows canonical gate 與無依賴 smoke。#278 雙語入口與 docs host lists 補 Codex，不新增第三語系、宿主宣稱或上游部署。
+- 不改已發布 pypdf 6.20.0、Docling 2.132.0 的安全相容性與精準 deferral；SKILL.md、部署 domain 與既有 scanner 完整性規則不動。
+- 詳細逐筆 adopt／defer／reject 與重訪條件見 docs/UPSTREAM.md。本窗口 implementation 到齊後跑一次完整 Windows gate；只有 gate 通過才能修改 reviewed watermark，仍須 fresh independent review 才能發布。測試與 scanner 證據保存在本機 fleet outputs，不將書籍或 source backups 加入 repo。
+
+- 歷史 #229／#228／#222 已核對現行源碼與對應回歸：Calibre pid＋sequence 唯一輸出、getsize 的 OSError 轉 ExtractionError、5 個 entrypoints 禁止 bytecode。既有 724 passed／8 skipped 全套涵蓋相關 tests，Windows 的 2 個 POSIX 權限案例 skipped；本次 SDT 修正不觸及其源碼，不代表真實 Calibre 或原生 POSIX live 驗證。

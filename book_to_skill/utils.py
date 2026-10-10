@@ -429,8 +429,74 @@ _MIN_NUMBERED_TITLES = 3
 _MIN_NUMBERED_BODY_CHARS = 200
 
 
+_PERIOD_TAIL = re.compile(r"^\s*\.[)\"'”’\]]*(\s|$)")
+
+_TAIL_WORD = re.compile(r"[^\s]*[0-9A-Za-z][^\s]*")
+
+_TITLE_TAIL_MAX_WORDS = 8
+
+_SENTENCE_END = re.compile(r"[.!?…:;\"'”’)\]]\s*$")
+
+_FRONT_MATTER_HEADERS = (
+    "preface",
+    "foreword",
+    "acknowledgements",
+    "acknowledgments",
+    "dedication",
+    "copyright",
+    "epigraph",
+    "prologue",
+)
+
+_BACK_MATTER_HEADERS = (
+    "bibliography",
+    "references",
+    "works cited",
+    "further reading",
+    "index",
+    "glossary",
+    "notes",
+    "endnotes",
+    "footnotes",
+    "colophon",
+    "about the author",
+    "about the authors",
+)
+
+_NON_CHAPTER_HEADERS = frozenset((*_FRONT_MATTER_HEADERS, *_BACK_MATTER_HEADERS))
+
+_NON_CHAPTER_PREFIX = re.compile(r"^(?:appendix|appendices)\b", re.IGNORECASE)
+
+_PART_HEADER = re.compile(r"^part\s+(?:\d+|[ivxlcdm]+)\b", re.IGNORECASE)
+
+def _is_non_chapter_section(title: str) -> bool:
+    """Return whether *title* is conventional book framing, not a chapter."""
+    normalized = title.strip()
+    return (
+        normalized.casefold() in _NON_CHAPTER_HEADERS
+        or bool(_TOC_PATTERN.fullmatch(normalized))
+        or bool(_NON_CHAPTER_PREFIX.match(normalized))
+        or bool(_PART_HEADER.match(normalized))
+    )
+
+def _is_prose_period_tail(tail: str, prev_line: str | None) -> bool:
+    """True when a period tail is a wrapped sentence, not a title.
+
+    The context decides first: a line that stands on its own (nothing above it,
+    or the line above ends a sentence) keeps its heading. When the paragraph
+    continues into the line, the tail must read like a title — a bare
+    "Chapter 6." and a clause of more than `_TITLE_TAIL_MAX_WORDS` words are the
+    sentence that wrapped. (Issue #237)
+    """
+    if not _PERIOD_TAIL.match(tail):
+        return False
+    if not prev_line or _SENTENCE_END.search(prev_line):
+        return False
+    words = _TAIL_WORD.findall(tail)
+    return not words or len(words) > _TITLE_TAIL_MAX_WORDS
+
 def _numbered_titles_are_structural(
-    entries: list[tuple[str, int]], heading_lines: list[int], lines: list[str]
+    entries: list[tuple[str, int, str]], heading_lines: list[int], lines: list[str]
 ) -> bool:
     """Decide whether digit-led titles at one depth are chapters or list items.
 
@@ -444,15 +510,15 @@ def _numbered_titles_are_structural(
         return False
     ordered = sorted(heading_lines)
     bodies = []
-    for _, index in entries:
+    for _, index, _ in entries:
         after = [ln for ln in ordered if ln > index]
         end = after[0] if after else len(lines)
         bodies.append(sum(len(ln) for ln in lines[index + 1:end]))
     return statistics.median(bodies) >= _MIN_NUMBERED_BODY_CHARS
 
 
-def _structural_chapter_count(text: str) -> int:
-    """Count chapter-like structural headings in Markdown/AsciiDoc/RST sources.
+def _structural_chapter_headings(text: str) -> list[str]:
+    """Return chapter-like structural headings in Markdown/AsciiDoc/RST sources.
 
     Recognizes ATX headings ("# Title", "== Section") and setext/RST underline
     headings (a title line directly above a row of "=" or "-"). Groups distinct
@@ -468,11 +534,14 @@ def _structural_chapter_count(text: str) -> int:
     not match).
     """
     lines = text.splitlines()
-    levels: dict[int, set[str]] = {}
+    # Map normalized titles to their original representation. Dict insertion
+    # order makes the returned sample match the source order while preserving
+    # the previous case-insensitive de-duplication behavior.
+    levels: dict[int, dict[str, str]] = {}
     # Digit-led titles are held back and judged per depth at the end (see
     # _numbered_titles_are_structural): "## 1. Introduction" and "## 5 Setup"
     # are the same string shape, so the line alone cannot decide.
-    numbered: dict[int, list[tuple[str, int]]] = {}
+    numbered: dict[int, list[tuple[str, int, str]]] = {}
     heading_lines: list[int] = []
     fenced = _closed_fence_line_numbers(lines)
     prev = ""  # previous non-fence line (stripped); a setext title candidate
@@ -488,17 +557,18 @@ def _structural_chapter_count(text: str) -> int:
             and prev
             and not _SETEXT_UNDERLINE.match(prev)
             and len(s) >= len(prev)
-            # A title made only of punctuation is never a chapter: two thematic
+            # A title made only of punctuation is never a chapter. Two thematic
             # breaks in a row ("***" over "---"), an ASCII box rule, a row of
-            # dots, or a table border above an underline all reach this point.
-            # The ATX branch below already rejects them with the same test, so
-            # the identical string counted as a heading here and not there.
-            # Adopted from upstream PR #180 (virgiliojr94/book-to-skill).
+            # dots, or a table border sitting above an underline all reach this
+            # point. The ATX branch below already rejects them with the same
+            # test; the setext branch had no equivalent, so the identical string
+            # counted as a heading here and not there.
             and re.search(r"\w", prev)
         ):
             depth = 1 if s[0] == "=" else 2
-            levels.setdefault(depth, set()).add(prev.lower())
             heading_lines.append(index)
+            if not _is_non_chapter_section(prev):
+                levels.setdefault(depth, {}).setdefault(prev.casefold(), prev)
             prev = ""
             continue
         # ATX heading ("# Title", "== Section").
@@ -509,26 +579,37 @@ def _structural_chapter_count(text: str) -> int:
             # Reject empty and all-punctuation ("=====" table-border) titles.
             if title and re.search(r"\w", title):
                 heading_lines.append(index)
-                if title[0].isdigit():
-                    numbered.setdefault(depth, []).append((title, index))
-                else:
-                    levels.setdefault(depth, set()).add(title)
+                if not _is_non_chapter_section(title):
+                    if title[0].isdigit():
+                        numbered.setdefault(depth, []).append((title, index, s))
+                    else:
+                        levels.setdefault(depth, {}).setdefault(title, s)
             # An ATX heading line is not a setext title for the next line.
             prev = ""
             continue
         prev = s
     for depth, entries in numbered.items():
         if _numbered_titles_are_structural(entries, heading_lines, lines):
-            levels.setdefault(depth, set()).update(title for title, _ in entries)
+            level = levels.setdefault(depth, {})
+            for title, _, sample in entries:
+                level.setdefault(title, sample)
     if not levels:
-        return 0
+        return []
     for depth in sorted(levels):
         if len(levels[depth]) >= 2:
-            return len(levels[depth])
+            return list(levels[depth].values())
     # No level has >= 2 distinct headings: a thin doc (e.g. one heading per
     # level). Count them all — this path runs only as a fallback when numeric
     # chapter detection already found zero, so it cannot inflate real books.
-    return sum(len(titles) for titles in levels.values())
+    return [
+        title
+        for depth in sorted(levels)
+        for title in levels[depth].values()
+    ]
+
+def _structural_chapter_count(text: str) -> int:
+    """Count chapter-like structural headings in Markdown/AsciiDoc/RST sources."""
+    return len(_structural_chapter_headings(text))
 
 
 def _cn_numeral_to_int(s: str) -> int | None:
@@ -577,39 +658,64 @@ def _roman_to_int(s: str) -> int | None:
     return total if _int_to_roman(total) == s else None
 
 
-def _match_chapter_number(line: str) -> int | None:
+def _match_chapter_number(
+    line: str, prev_line: str | None = None, heading_marked: bool = False
+) -> int | None:
     """Return the chapter number if the line is a genuine chapter heading,
-    with no Markdown/AsciiDoc heading prefix (the caller strips it first)."""
+    with no Markdown/AsciiDoc heading prefix (the caller strips it first).
+
+    `prev_line` is the line directly above (None when it is blank or inside a
+    fenced block); it is consulted only for a bare period tail. `heading_marked`
+    says the line carried an explicit "#"/"==" prefix before it was stripped —
+    an explicit heading is trusted as it stands, so "## Chapter 4. References
+    are indicated by the `&` symbol…" keeps counting. (Issue #237)
+    """
     # Normalize Kangxi-radical numerals (⼀⼆⼋⼗) to ideographs so Chinese
     # ebooks that encode chapter numbers in the U+2F00 block are detected.
     s = line.strip().translate(_KANGXI_NUMERAL_TRANS)
+
     if len(s) > 80:
         return None
+
     # Plain numbered chapter headings used by many technical books,
     # e.g. "1  Introduction" or "12  Advanced Topics".
     #
     # Require at least two spaces after the chapter number. This avoids
     # treating ordinary numbered list items such as "1. Item" as chapters.
-    plain = re.match(r"^([1-9]\d{0,2})\s{2,}\S", s)
-    if plain:
+    #
+    # A unified-diff hunk line starts with exactly that shape
+    # ("1  + use crate::trpl::StreamExt;", "12  - use std::io::prelude::*;").
+    # Its first non-space character is the diff marker, which no chapter title
+    # starts with, so the marker decides. Fenced blocks are skipped by the
+    # caller; this covers code that arrives without fences. (Issue #237)
+    plain = re.match(r"^([1-9]\d{0,2})\s{2,}(\S)", s)
+    if plain and plain.group(2) not in "+-":
         return int(plain.group(1))
+
     m = _EXPLICIT_CHAPTER.match(s)
     if m and _HEADING_TAIL.match(m.group("rest")):
+        if not heading_marked and _is_prose_period_tail(m.group("rest"), prev_line):
+            return None
         if m.group(1):
             return int(m.group(1))
         return _roman_to_int(m.group("roman").upper())
+
     rm = _ROMAN_HEAD.match(s) or _LC_MD_ROMAN.match(s)
     if rm:
         return _roman_to_int(rm.group(1))
+
     cm = _CN_CHAPTER.match(s) or _MD_CN_HEADING.match(s)
     if cm:
         return _cn_numeral_to_int(cm.group(1))
+
     tm = _TH_CHAPTER.match(s)
     if tm:
         return int(tm.group(1).translate(_TH_DIGIT_MAP))
+
     hm = _HI_CHAPTER.match(s)
     if hm:
         return int(hm.group(1).translate(_HI_DIGIT_MAP))
+
     bm = _BN_CHAPTER.match(s)
     if bm:
         return int(bm.group(1).translate(_BN_DIGIT_MAP))
@@ -625,17 +731,23 @@ def _match_chapter_number(line: str) -> int | None:
     elm = _EL_CHAPTER.match(s)
     if elm:
         return int(elm.group(1))
+
     km = _KO_CHAPTER.match(s)
     if km:
         return int(km.group(1))
+
     fa = _fa_chapter_number(s)
     if fa is not None:
         return fa
+
     return None
 
 
-def _chapter_number(line: str) -> int | None:
+def _chapter_number(line: str, prev_line: str | None = None) -> int | None:
     """Return the chapter number if the line is a genuine chapter heading.
+
+    `prev_line` is the line directly above (None when it is blank or inside a
+    fenced block); see `_match_chapter_number` for how it is used.
 
     Handles Arabic ("Chapter 5", "Capítulo 5: ..."), Roman-numeral
     ("I: Loomings", "## i. introduction", "II. The Carpet-Bag"),
@@ -644,6 +756,8 @@ def _chapter_number(line: str) -> int | None:
     Bengali ("অধ্যায় 1", "অধ্যায় ১", "## অধ্যায় 2"),
     Tamil ("அத்தியாயம் 1", "அத்தியாயம் ௧", "## அத்தியாயம் 2"),
     Telugu ("అధ్యాయము 1", "అధ్యాయం ౧", "## అధ్యాయం 2"),
+    Kannada ("ಅಧ್ಯಾಯ 1", "ಅಧ್ಯಾಯ ೧", "## ಅಧ್ಯಾಯ 2"),
+    Russian ("Глава 1", "ГЛАВА 12", "## Глава 2"),
     Greek ("Κεφάλαιο 1", "ΚΕΦΑΛΑΙΟ 12", "## Κεφάλαιο 2"),
     Korean ("제1장 총칙", "## 제4장 근로시간과 휴식"), and
     Persian ("فصل ۱", "فصل اول", "فصل بیست و یکم", "بخش ۲: مفاهیم",
@@ -651,7 +765,7 @@ def _chapter_number(line: str) -> int | None:
     optionally preceded by a Markdown/AsciiDoc heading marker
     ("## Chapter 1" is a chapter heading just like "Chapter 1").
     """
-    match = _match_chapter_number(line)
+    match = _match_chapter_number(line, prev_line)
     if match is not None:
         return match
     # Second pass: a Markdown/AsciiDoc heading prefix ("## Chapter 1",
@@ -660,10 +774,15 @@ def _chapter_number(line: str) -> int | None:
     # on the line start. Strip the prefix and retry so --mode technical
     # (Docling emits headings as Markdown) detects the same chapters as
     # plain-text extraction. (Issue #91)
+    #
+    # No previous line is passed and the line is marked as heading-marked: an
+    # explicit "#"/"==" prefix is a structural claim, so a period tail there
+    # ("## Chapter 6. Enums", "## Chapter 4. References are indicated by…") is
+    # trusted as written.
     s = line.strip()
     md = _MD_HEADING_PREFIX.match(s)
     if md:
-        return _match_chapter_number(s[md.end():])
+        return _match_chapter_number(s[md.end():], heading_marked=True)
     return None
 
 
@@ -674,16 +793,51 @@ def detect_structure(text: str) -> dict:
     from explicit "Chapter N"/"Capítulo N" headings, rejecting prose
     cross-references and numbered list items. Counting distinct numbers means a
     ToC entry and its body heading are not double-counted.
+
+    Lines inside closed code fences are skipped, the same guard
+    `_structural_chapter_count()` uses: a sample holding a diff
+    ("1  + use crate::trpl::StreamExt;") otherwise matched the numeric scan and
+    the count built from code lines won over the structural count. A period
+    tail is judged against the line above it so a wrapped cross-reference
+    ("...as we cover in / Chapter 6. Closures create types...") is not counted
+    while a heading on its own line still is. (Issue #237)
     """
     lines = text.splitlines()
+    fenced = _closed_fence_line_numbers(lines)
 
     headings = []
     numbers = set()
-    for line in lines:
-        num = _chapter_number(line)
+    part_headings = []
+    part_numbers = set()
+    prev = ""  # previous non-blank line; cleared by blanks and fences
+    for index, line in enumerate(lines):
+        if index in fenced:
+            prev = ""
+            continue
+        s = line.strip()
+        if not s:
+            prev = ""
+            continue
+        title = _MD_HEADING_PREFIX.sub("", s)
+        part = _PART_HEADER.match(title)
+        if part:
+            numeral = title.split()[1].rstrip(":.-")
+            number = int(numeral) if numeral.isdigit() else _roman_to_int(numeral.upper())
+            if number is not None:
+                part_numbers.add(number)
+                part_headings.append(s)
+            prev = s
+            continue
+        num = _chapter_number(line, prev)
         if num is not None:
-            numbers.add(num)
-            headings.append(line.strip())
+            title = _MD_HEADING_PREFIX.sub("", s)
+            if _PART_HEADER.match(title):
+                part_numbers.add(num)
+                part_headings.append(s)
+            else:
+                numbers.add(num)
+                headings.append(s)
+        prev = s
     numeric_count = len(numbers)
     # Fall back to structural (Markdown/AsciiDoc) headings only when no numeric
     # "Chapter N" headings were found, so books with real chapters are unaffected.
@@ -694,12 +848,34 @@ def detect_structure(text: str) -> dict:
     # Every parser in this project already announces which method it used
     # ("Trying python-docx... OK"); this decision had the same shape and was
     # the only silent one.
-    if numeric_count > 0:
+    if numeric_count >= 2:
         chapters_detected = numeric_count
         chapters_method = "numeric"
+        chapter_headings_sample = headings[:10]
     else:
-        chapters_detected = _structural_chapter_count(text)
-        chapters_method = "structural" if chapters_detected else "none"
+        # A single stray number (e.g. a Roman numeral inside an example paper
+        # reproduced in the book, or a lone "Part 1") is not enough to suppress
+        # the structural (Markdown/AsciiDoc) heading count, so course-style
+        # books with "### Unit N" headings still get counted via max().
+        structural_headings = _structural_chapter_headings(text)
+        structural_count = len(structural_headings)
+        # Parts group chapters and must not win the numeric branch ahead of
+        # the structural chapters inside them. Retain the old Part-only
+        # fallback when the extraction contains no other chapter evidence.
+        if not numeric_count and not structural_count:
+            numeric_count = len(part_numbers)
+            headings = part_headings
+        chapters_detected = max(numeric_count, structural_count)
+        chapters_method = (
+            "structural" if structural_count > numeric_count
+            else "numeric" if numeric_count
+            else "none"
+        )
+        chapter_headings_sample = (
+            structural_headings[:10]
+            if chapters_method == "structural"
+            else headings[:10]
+        )
 
     # Look for ToC indicators in the first ~30k chars (multilingual; see _TOC_PATTERN)
     has_toc = bool(_TOC_PATTERN.search(text[:30000]))
@@ -707,7 +883,7 @@ def detect_structure(text: str) -> dict:
     return {
         "chapters_detected": chapters_detected,
         "chapters_method": chapters_method,
-        "chapter_headings_sample": headings[:10],
+        "chapter_headings_sample": chapter_headings_sample,
         "has_toc": has_toc,
     }
 
@@ -868,6 +1044,8 @@ def extract_single_file(input_path: Path, extraction_mode: str, install_mode: st
         
     text = ""
     method = ""
+    fallback_reason = None
+    requested_mode = extraction_mode
     pages = 0
     pages_label = "sections"
     images_dropped = None
@@ -910,13 +1088,32 @@ def extract_single_file(input_path: Path, extraction_mode: str, install_mode: st
                 "  ocrmypdf input.pdf output.pdf"
             )
         if extraction_mode == "technical":
-            print("Mode: technical — using Docling (layout-aware)...", end=" ", flush=True)
-            text = extract_with_docling(input_str)
+            print("Mode: technical — using Docling (layout-aware)...")
+            try:
+                text = extract_with_docling(input_str)
+            except Exception as exc:
+                fallback_reason = "docling_failed"
+                print(
+                    f"WARNING: Docling failed ({type(exc).__name__}: {exc}); "
+                    "using the PDF text fallback chain.",
+                    file=sys.stderr,
+                )
+                text = None
             if text and text.strip():
                 method = "docling"
                 print("OK")
             else:
-                print("not available, falling back to pdftotext")
+                if fallback_reason is None:
+                    if text is None:
+                        fallback_reason = "docling_unavailable"
+                        detail = "Docling is unavailable"
+                    else:
+                        fallback_reason = "docling_empty"
+                        detail = "Docling produced no text"
+                    print(
+                        f"WARNING: {detail}; using the PDF text fallback chain.",
+                        file=sys.stderr,
+                    )
                 extraction_mode = "text"
                 
         if extraction_mode == "text" or not text:
@@ -1022,6 +1219,8 @@ def extract_single_file(input_path: Path, extraction_mode: str, install_mode: st
         "filename": input_path.name,
         "format": document_format,
         "extraction_method": method,
+        "extraction_mode": requested_mode,
+        "fallback_reason": fallback_reason,
         "file_size_mb": round(file_size_mb, 2),
         pages_label: pages,
         "pages_label": pages_label,
@@ -1286,7 +1485,8 @@ def main():
     consolidated_text = "".join(combined_texts).strip()
     
     # Write combined text
-    OUTPUT_TEXT.write_text(consolidated_text, encoding="utf-8")
+    with OUTPUT_TEXT.open("w", encoding="utf-8", newline="\n") as corpus:
+        corpus.write(consolidated_text)
     
     # Consolidate metadata
     total_file_size_mb = sum(src["file_size_mb"] for src in extracted_sources)
@@ -1303,6 +1503,28 @@ def main():
     # headings and make the result depend on the source-path length.
     structure_text = "\n\n".join(src["text"] for src in extracted_sources)
     consolidated_structure = detect_structure(structure_text)
+    structural_sources = [
+        src for src in extracted_sources
+        if src["chapters_method"] == "structural" and src["chapters_detected"] >= 2
+    ]
+    if (
+        len(extracted_sources) > 1
+        and structural_sources
+        and all(src["chapters_method"] != "numeric" for src in extracted_sources)
+    ):
+        # Each source has already selected its own chapter depth. Re-scanning
+        # the joined corpus selects the H1 source titles instead when there are
+        # multiple books with H2 chapters (issue #272). A lone heading in a
+        # source may only be its title, so it is not added to the chapter count.
+        consolidated_structure["chapters_detected"] = sum(
+            src["chapters_detected"] for src in structural_sources
+        )
+        consolidated_structure["chapter_headings_sample"] = [
+            heading
+            for src in structural_sources
+            for heading in src["chapter_headings_sample"]
+        ][:10]
+        consolidated_structure["chapters_method"] = "structural"
     # has_toc is a per-source property, so it has to be combined per source
     # rather than re-derived from the corpus. detect_structure only scans the
     # first ~30k chars, because a table of contents sits in a book's front
@@ -1340,6 +1562,8 @@ def main():
                 "filename": src["filename"],
                 "format": src["format"],
                 "extraction_method": src["extraction_method"],
+                "extraction_mode": src["extraction_mode"],
+                "fallback_reason": src["fallback_reason"],
                 "file_size_mb": src["file_size_mb"],
                 "pages": src["pages"],
                 "pages_label": src["pages_label"],
@@ -1349,6 +1573,7 @@ def main():
                 "images_dropped": src["images_dropped"],
                 "chapters_detected": src["chapters_detected"],
                 "chapters_method": src["chapters_method"],
+                "chapter_headings_sample": src["chapter_headings_sample"],
                 "has_toc": src["has_toc"]
             }
             for src in extracted_sources
