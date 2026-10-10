@@ -793,6 +793,41 @@ class TestDetectStructure:
         # Common ZWNJ spelling of 30.
         assert _chapter_number("فصل سی‌ام") == 30
 
+    @pytest.mark.parametrize('heading', [
+        'فصل سی‌ام', 'بخش سی‌ام: مفاهیم', '## فصل سی‌ام نتیجه',
+    ])
+    def test_persian_zwnj_ordinal_survives_sanitization(self, heading):
+        from book_to_skill.sanitize import sanitize_extracted_text
+        from book_to_skill.utils import _chapter_number
+
+        sanitized, removed = sanitize_extracted_text(heading)
+        assert removed == 1
+        assert _chapter_number(heading) == _chapter_number(sanitized) == 30
+
+    def test_persian_zwnj_chapters_detected_after_sanitization(self):
+        from book_to_skill.sanitize import sanitize_extracted_text
+
+        text = 'فصل بیستم مقدمه\nمتن\nفصل سی‌ام نتیجه\nمتن'
+        sanitized, removed = sanitize_extracted_text(text)
+        assert removed == 1
+        result = detect_structure(sanitized)
+        assert result['chapters_detected'] == 2
+        assert result['chapter_headings_sample'] == ['فصل بیستم مقدمه', 'فصل سیام نتیجه']
+
+    @pytest.mark.parametrize('heading', [
+        'در فصل سی‌ام این موضوع را بررسی می‌کنیم',
+        'این فصل سی‌ام یک توضیح است',
+        'فصل اولویت‌ها', 'فصل دومینو', 'سی‌ام',
+        'فصل سیامک', 'فصل سی‌امک',
+    ])
+    def test_persian_sanitized_ordinals_keep_false_positive_boundaries(self, heading):
+        from book_to_skill.sanitize import sanitize_extracted_text
+        from book_to_skill.utils import _chapter_number
+
+        sanitized, _ = sanitize_extracted_text(heading)
+        assert _chapter_number(sanitized) is None
+        assert detect_structure(sanitized)['chapters_detected'] == 0
+
     def test_persian_compound_word_numerals(self):
         """Explicit compound forms used in longer Persian books."""
         from book_to_skill.utils import _chapter_number

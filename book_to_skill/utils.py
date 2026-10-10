@@ -301,10 +301,17 @@ def _fa_ordinal_map() -> dict[str, int]:
     for i, w in enumerate(_FA_COMPOUND_ONES, 1):
         m[f"بیست و {w}"] = 20 + i
         m[f"سی و {w}"] = 30 + i
+    # Sanitization removes ZWNJ before detection; preserve the same ordinal
+    # mapping for that spelling without restoring invisible characters.
+    for key, value in list(m.items()):
+        m.setdefault(key.replace("\u200c", ""), value)
     return m
 
 
 _FA_ORDINALS = _fa_ordinal_map()
+_FA_STRIPPED_ORDINAL_KEYS = {
+    key.replace("\u200c", "") for key in _FA_ORDINALS if "\u200c" in key
+}
 # Longest first so "چهاردهم" wins over "چهارم", "بیست و یکم" over nothing shorter.
 _FA_ORDINAL_KEYS = sorted(_FA_ORDINALS, key=len, reverse=True)
 _FA_LABEL_REST = re.compile(r"^\s*(?:فصل|بخش)\s+(.*)$")
@@ -329,8 +336,9 @@ def _fa_chapter_number(s: str) -> int | None:
         if not rest.startswith(key):
             continue
         tail = rest[len(key):]
-        # Short 1–10 ordinals need a separator; teens/compounds may be PDF-glued.
-        if key in _FA_ONES_SET and _FA_SHORT_ORDINAL_TAIL.match(tail) is None:
+        # Stripped spellings can prefix ordinary words, just like short 1–10
+        # ordinals. Other existing teens/compounds retain PDF-glued titles.
+        if (key in _FA_ONES_SET or key in _FA_STRIPPED_ORDINAL_KEYS) and _FA_SHORT_ORDINAL_TAIL.match(tail) is None:
             return None
         return _FA_ORDINALS[key]
     return None

@@ -401,3 +401,11 @@ PDF 的 model-free NativePdfPipeline 回報 backend parse failure，尚未區分
 - 詳細逐筆 adopt／defer／reject 與重訪條件見 docs/UPSTREAM.md。本窗口 implementation 到齊後跑一次完整 Windows gate；只有 gate 通過才能修改 reviewed watermark，仍須 fresh independent review 才能發布。測試與 scanner 證據保存在本機 fleet outputs，不將書籍或 source backups 加入 repo。
 
 - 歷史 #229／#228／#222 已核對現行源碼與對應回歸：Calibre pid＋sequence 唯一輸出、getsize 的 OSError 轉 ExtractionError、5 個 entrypoints 禁止 bytecode。既有 724 passed／8 skipped 全套涵蓋相關 tests，Windows 的 2 個 POSIX 權限案例 skipped；本次 SDT 修正不觸及其源碼，不代表真實 Calibre 或原生 POSIX live 驗證。
+
+
+## 2026-10-10：PR #287–#289 有限增量
+
+- #287 修既有波斯文 ZWNJ ordinal 經 sanitizer 後失去章節數字；只把既有 ordinal keys 的去 U+200C 拼法加入同一 mapping，保留不可見字元移除、安全計数與原 chapter boundaries，不新增語系或復原 ZWNJ。raw／sanitized 等價與兩章 pipeline 先紅後綠，並保存 7 個 false-positive 回歸。新增去 ZWNJ alias 可能成為較長詞的前綴，因此只對新增 alias 要求 separator／end；其他既有長 ordinal 的 PDF 黏字政策不變。
+- #288 完整 diff 的 SDT ToC 漏文已由目前 block／inline 有文字 SDT 安全 ZIP fallback 涵蓋；保留 defusedxml、DOCTYPE／ENTITY 拒絕、重複次數與順序，不改為上游僅判斷 top-level children 的 helper。
+- #289 negative replay usage 屬未導入的 eval subsystem，不套用。未宣稱其 runtime 已修復；若未來引入 usage aggregation，必須一起驗證負數 unknown、bool、真實零值及 totals 不互相抵消。
+- 只審到 PR #289，commit／issue 水位不變。最終 canonical gate 與 focused fresh review 是發布條件；原 scanner reference-resolution 非致命 partial 限制持續明記，不宣稱真實書籍、外部模型或原生 POSIX live 驗收。

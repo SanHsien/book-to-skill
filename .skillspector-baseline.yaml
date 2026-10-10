@@ -60,7 +60,7 @@ rules:
   message: '*subprocess*'
   reason: 已人工審查：測試 helper 以 shell false 的固定 argv 陣列呼叫 git，輸入為測試常數且有 30 秒 timeout，不拼接 shell。
 fingerprints:
-- hash: sha256:b427be5c7d47b13d44f03631288f4c255d43613c87411eb10950c09c39426ee8
+- hash: sha256:62f0f18fef32df6654b680fd8ad81333ff3d4f3382b8e7b08606304d9db89ede
   rule_id: AE4
   file: tests/test_book_to_skill.py
   reason: 已人工審查：測試刻意含 Unicode 正規化與控制字元樣本以驗證 sanitizer，不含偽裝指令或機密。
@@ -152,11 +152,11 @@ fingerprints:
   rule_id: SC4
   file: requirements-security.txt
   reason: 已人工審查：SkillSpector 以 SanHsien fork 的精確 Git commit 釘定；OSV 無法從 PEP 508 VCS URL 推導版本而以名稱查詢舊漏洞，並不代表該 commit 含未修補版本。
-- hash: sha256:a49913d3fb1bc2c302816a8bfac3bf251526fadec5dd77dc05933266944fc0c2
+- hash: sha256:ffbf7d76bc799b8c0c4682820796e32dc4dd28707ca466c191226957c3854fb1
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：文件明確禁止推送 upstream，並要求只推 SanHsien origin；這是安全邊界說明，不是參數濫用指令。
-- hash: sha256:119dd25eb90ba9a896f2b5fa8ede0532cdb0be4f8f0f2112b3d6fc8855268158
+- hash: sha256:0da5ee778ff00a91a9f5e278426879b6cf07b7580e57789f0c4fa5dbef537e74
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：同一段禁止推送 upstream 的 normalized view；沒有執行路徑，且保留此文字能防止誤推母 repo。

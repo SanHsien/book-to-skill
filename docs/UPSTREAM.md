@@ -394,3 +394,16 @@ pattern 在本 fork 的主要平台上等於全部失效（舊的 `\s*$` 是靠 
 - `283`：不採用。只修 tools/evals/score._count 負數usage 與 research/evals tests；本 fork沒有 tools/evals/tests/evals，既有 #185/#200/#225 eval 排除政策仍成立。revisit: 明確加入 evaluation subsystem 後連同 usage data validation 導入。
 
 歷史 #245／#246 已納入本輪章節批次；#224 reuse foundation 未導入，#267／#275 不可單獨採用。#229／#228／#222 的舊 adoption-pending 帳已核對現行源碼與對應回歸：Calibre 每次輸出使用 pid＋sequence 唯一路徑（test_calibre_stale_output.py 5 個案例）；getsize 的 OSError 轉為 ExtractionError（test_batch_resilience_unreadable.py，Windows 的 2 個 POSIX 權限案例 skipped）；5 個 entrypoints 禁止寫入 bytecode（test_no_bytecode_pollution.py）。既有 724 passed／8 skipped 全套涵蓋這些測試，本次 SDT 修改不觸及其源碼；此紀錄不代表實際 Calibre 外部程式或原生 POSIX 權限 live 驗證。
+
+
+## 2026-10-10：PR #287–#289 有限增量審查
+
+逐筆讀完整 diff，窗口只到 PR #289；commit `e180fc46365e8c1aab0120778cc8a40b9515324b` 與 issue #283 水位不變。本機人工 fixture／文字回歸不代表真實書籍或外部模型驗收。
+
+| PR 與讀取 head | 判斷 | 現行 fork 證據與範圍 |
+| --- | --- | --- |
+| [#287](https://github.com/virgiliojr94/book-to-skill/pull/287) `fd9ff58416bf6567e2d2aede06d2b835ccd4830a` | 採用最小修復 | fork 已有波斯文 ordinal 1–34；raw `سی + U+200C + ام` 為 30，sanitize 移除 U+200C 後 `سیام` 原本無 mapping。僅補 ordinal map 的去 ZWNJ 同義拼法，保留 sanitizer 安全移除與既有 chapter boundaries；不是新增語系。3 個 raw／sanitized 等價案例、1 個兩章 pipeline 案例先失敗，另補 7 個 prose／短 ordinal／缺 label／新增 alias prefix 誤判回歸；去 ZWNJ 的新增 alias 要求 separator／end，其他既有長 ordinal 保留 PDF 黏字政策；focused 波斯文測試 23 passed。 |
+| [#288](https://github.com/virgiliojr94/book-to-skill/pull/288) `d17fbde9f79cd46da9450b1a8f609746eb843b20` | 已涵蓋 | diff 針對 top-level SDT 的 ToC 被 ordered iterator 跳過，另驗證無 SDT／空 SDT 不回退。現 fork `_docx_sdt_text_fragments()` 經 defusedxml 檢查所有 SDT content；有文字的 block／inline SDT 回安全 ZIP parser，保留 ToC、重複次數與順序。既有人工 DOCX interleaved table／SDT／重複文字／substring／inline 回歸及發布前 728 項全套已驗證，沒有重新引入上游較窄的 top-level-only helper。 |
+| [#289](https://github.com/virgiliojr94/book-to-skill/pull/289) `ee0429fcf5e24cb44148ab70b0b69b3fb8904cb0` | 不適用 | 完整 diff 只改 `tools/evals/score.py` 的 negative usage → unknown 及 `tests/evals/test_score.py` 的 totals regression；fork 沒有這兩個路徑，也沒有該 eval subsystem，沿用 #185／#200／#225 排除決策。重訪：正式引入 eval replay／usage aggregation 時，連同 bool／負數／unknown／真實零值回歸一起採用。 |
+
+本窗口發布仍須 canonical Windows gate 與一次 focused fresh review；完整 diff、命令、fulltree hashes 與驗證 logs 保存在本機 fleet outputs。
