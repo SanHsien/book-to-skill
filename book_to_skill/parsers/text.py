@@ -27,9 +27,12 @@ def read_text_file(path: str) -> str | None:
             try:
                 return data.decode(encoding)
             except (UnicodeDecodeError, LookupError):
-                break
+                # The BOM is an explicit encoding declaration. Trying cp1252 or
+                # latin-1 here would silently accept damaged data as mojibake.
+                print(f"  [warn] read_text_file: invalid {encoding} data after BOM", file=sys.stderr)
+                return None
 
-    # No (usable) BOM: fall back to the prior chain for BOM-less files.
+    # No BOM: fall back to the prior chain for BOM-less files.
     for encoding in ("utf-8", "cp1252", "latin-1"):
         try:
             return data.decode(encoding)
