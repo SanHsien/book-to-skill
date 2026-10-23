@@ -148,7 +148,9 @@ function Invoke-SkillSpectorSelfScan {
         if ($LASTEXITCODE -ne 0 -and $LASTEXITCODE -ne 1) {
             throw "skillspector scan crashed (exit code $LASTEXITCODE); see $reportPath"
         }
-        & $script:pythonExe tools\check_skillspector_report.py $reportPath
+        # The baseline and staged tree let the checker honour reviewed_partials, each
+        # pinned to the SHA-256 of the file exactly as it was scanned.
+        & $script:pythonExe tools\check_skillspector_report.py $reportPath $baselinePath $stageDir
         $reportCheckExit = $LASTEXITCODE
         if ($reportCheckExit -eq 1) {
             throw ("SkillSpector found new, un-baselined finding(s). Review " +

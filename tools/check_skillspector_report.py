@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 from pathlib import Path
 
+import yaml
 
 _WORK_COUNTERS = ("planned_work", "completed", "partial", "skipped", "failed", "unaccounted")
 _EXPECTED_NO_LLM_ANALYZERS = frozenset(
@@ -52,14 +54,22 @@ _DISABLED_WITHOUT_LLM = frozenset(
 )
 
 
+# Non-fatal reference outcomes. SkillSpector 2.12.0 split the old single reason into
+# reference_missing (no bundled artifact matches, e.g. a file the skill writes at run
+# time) and reference_unresolved (several artifacts match); both leave the reference
+# partial without failing the scan.
+_NONFATAL_REFERENCE_REASONS = frozenset({"reference_missing", "reference_unresolved"})
+
+
 def _is_nonnegative_int(value: object) -> bool:
     return isinstance(value, int) and not isinstance(value, bool) and value >= 0
 
 
-def _reference_exceptions_accounted(completeness: dict[str, object]) -> bool:
-    exceptions = completeness.get("ledger_exceptions")
+def _reference_exceptions_accounted(
+    completeness: dict[str, object], exceptions: list[object], *, has_static_partials: bool
+) -> bool:
     references = completeness.get("references")
-    if not isinstance(exceptions, list) or not isinstance(references, list):
+    if not isinstance(references, list):
         return False
     if completeness.get("status") == "complete":
         return (
@@ -73,7 +83,7 @@ def _reference_exceptions_accounted(completeness: dict[str, object]) -> bool:
     if (
         completeness.get("status") != "partial"
         or completeness.get("is_complete") is not False
-        or not exceptions
+        or not (exceptions or has_static_partials)
     ):
         return False
 
@@ -87,7 +97,7 @@ def _reference_exceptions_accounted(completeness: dict[str, object]) -> bool:
         if (
             item.get("outcome") != "partial"
             or item.get("phase") != "reference_resolution"
-            or item.get("reason_code") != "reference_unresolved"
+            or item.get("reason_code") not in _NONFATAL_REFERENCE_REASONS
             or item.get("fatal") is not False
             or not isinstance(path, str)
             or not path
@@ -118,7 +128,51 @@ def _reference_exceptions_accounted(completeness: dict[str, object]) -> bool:
     return exception_keys == reference_keys
 
 
-def _coverage_accounted(completeness: dict[str, object]) -> bool:
+def _static_partials(
+    completeness: dict[str, object], reviewed: frozenset[tuple[str, str, str]]
+) -> tuple[list[object], set[str], dict[str, int]] | None:
+    """Split reviewed static parse limits out of the ledger exceptions.
+
+    Returns the remaining exceptions, the partially inspected paths and, per analyzer,
+    how many partial units the reviewed exceptions explain. A static exception that no
+    reviewed partial covers makes the scan incomplete (None).
+    """
+    exceptions = completeness.get("ledger_exceptions")
+    if not isinstance(exceptions, list):
+        return None
+    remaining: list[object] = []
+    paths: set[str] = set()
+    per_analyzer: dict[str, int] = {}
+    for item in exceptions:
+        if not isinstance(item, dict) or item.get("phase") != "static":
+            remaining.append(item)
+            continue
+        path = item.get("path")
+        reason = item.get("reason_code")
+        analyzers = item.get("analyzers")
+        if (
+            item.get("outcome") != "partial"
+            or item.get("fatal") is not False
+            or not isinstance(path, str)
+            or not isinstance(reason, str)
+            or not isinstance(analyzers, list)
+            or not analyzers
+        ):
+            return None
+        for analyzer in analyzers:
+            if (path, analyzer, reason) not in reviewed:
+                return None
+            per_analyzer[analyzer] = per_analyzer.get(analyzer, 0) + 1
+        paths.add(path)
+    return remaining, paths, per_analyzer
+
+
+def _coverage_accounted(
+    completeness: dict[str, object],
+    remaining: list[object],
+    partial_paths: set[str],
+    degraded: set[str],
+) -> bool:
     total = completeness.get("total_components")
     scanned = completeness.get("scanned_components")
     fully = completeness.get("fully_inspected_files")
@@ -126,20 +180,24 @@ def _coverage_accounted(completeness: dict[str, object]) -> bool:
     uninspected = completeness.get("entirely_uninspected_files")
     coverage = completeness.get("coverage_percent")
     limitations = completeness.get("limitations", [])
+    if not _is_nonnegative_int(total) or total <= 0:
+        return False
+    expected_scanned = total - len(partial_paths)
+    expected_limitations = sorted(f"Analyzer {name} status: degraded." for name in degraded)
     return (
-        _is_nonnegative_int(total)
-        and total > 0
-        and scanned == total
-        and fully == total
-        and partial == 0
+        scanned == expected_scanned
+        and fully == expected_scanned
+        and partial == len(partial_paths)
         and uninspected == 0
         and isinstance(coverage, (int, float))
         and not isinstance(coverage, bool)
-        and coverage == 100.0
+        and abs(coverage - 100.0 * expected_scanned / total) < 0.1
         and completeness.get("execution_successful") is True
         and isinstance(limitations, list)
-        and not limitations
-        and _reference_exceptions_accounted(completeness)
+        and sorted(limitations) == expected_limitations
+        and _reference_exceptions_accounted(
+            completeness, remaining, has_static_partials=bool(partial_paths)
+        )
     )
 
 
@@ -164,9 +222,17 @@ def _binary_scope_exclusions(completeness: dict[str, object]) -> dict[str, set[s
     return accounted
 
 
-def _analyzers_complete(report: dict[str, object]) -> bool:
+def _analyzers_complete(
+    report: dict[str, object], reviewed: frozenset[tuple[str, str, str]] = frozenset()
+) -> bool:
     completeness = report.get("analysis_completeness")
-    if not isinstance(completeness, dict) or not _coverage_accounted(completeness):
+    if not isinstance(completeness, dict):
+        return False
+    split = _static_partials(completeness, reviewed)
+    if split is None:
+        return False
+    remaining, partial_paths, partial_by_analyzer = split
+    if not _coverage_accounted(completeness, remaining, partial_paths, set(partial_by_analyzer)):
         return False
     statuses = completeness.get("analyzer_statuses")
     if not isinstance(statuses, list) or not statuses:
@@ -198,41 +264,107 @@ def _analyzers_complete(report: dict[str, object]) -> bool:
             # An LLM analyzer doing work in a --no-llm scan means the gate is not
             # measuring what it claims to measure.
             return False
-        elif status == "completed":
+        elif status == "completed" and analyzer_id not in partial_by_analyzer:
+            # Out-of-scope binaries count as failed work before SkillSpector 2.12.0 and as
+            # completed (failed == 0) from 2.12.0 on; either matches an explicit exclusion.
             allowed_failed = len(binary_exclusions.get(analyzer_id, set()))
             if (
                 planned != completed + failed
                 or any((partial, skipped, unaccounted))
-                or failed != allowed_failed
+                or failed not in {0, allowed_failed}
+            ):
+                return False
+        elif status == "degraded" and analyzer_id in partial_by_analyzer:
+            # Degraded only by reviewed static parse limits: every partial unit must be
+            # one of them, and nothing may be skipped or unaccounted.
+            allowed_failed = len(binary_exclusions.get(analyzer_id, set()))
+            if (
+                planned != completed + partial + failed
+                or partial != partial_by_analyzer[analyzer_id]
+                or any((skipped, unaccounted))
+                or failed not in {0, allowed_failed}
             ):
                 return False
         else:
             return False
-    return seen == _EXPECTED_NO_LLM_ANALYZERS
+    expected = set(_EXPECTED_NO_LLM_ANALYZERS)
+    if partial_paths and "reference_coverage" in seen:
+        # The scanner adds this row (with an AE1 finding per reference) only when a
+        # referenced file was not fully inspected -- here, a reviewed partial.
+        expected.add("reference_coverage")
+    return seen == expected
 
 
-def report_exit_code(report: dict[str, object]) -> int:
+def reviewed_partials(baseline: dict[str, object], scan_root: Path) -> frozenset[tuple[str, str, str]]:
+    """Reviewed static parse limits whose file is unchanged since review.
+
+    The whole repository is scanned as one bundle, so entries carry no skill scope;
+    each is pinned to the SHA-256 of the file as staged (LF) under ``scan_root``.
+    """
+    entries = baseline.get("reviewed_partials") or []
+    if not isinstance(entries, list):
+        raise ValueError("reviewed_partials must be a list")
+    keys = ("path", "reason_code", "sha256", "reason")
+    reviewed: set[tuple[str, str, str]] = set()
+    for entry in entries:
+        if not isinstance(entry, dict):
+            raise ValueError("each reviewed partial must be a mapping")
+        fields = {key: entry.get(key) for key in keys}
+        if any(not isinstance(value, str) or not value.strip() for value in fields.values()):
+            raise ValueError("a reviewed partial needs " + ", ".join(keys))
+        # One limit can degrade several analyzers on the same file; list them all.
+        analyzers = entry.get("analyzers")
+        if analyzers is None and isinstance(entry.get("analyzer"), str):
+            analyzers = [entry["analyzer"]]
+        if (
+            not isinstance(analyzers, list)
+            or not analyzers
+            or any(not isinstance(name, str) or not name.strip() for name in analyzers)
+        ):
+            raise ValueError("a reviewed partial needs analyzer or a non-empty analyzers list")
+        target = scan_root / fields["path"]
+        if not target.is_file():
+            continue
+        if hashlib.sha256(target.read_bytes()).hexdigest() != fields["sha256"]:
+            continue
+        for name in analyzers:
+            reviewed.add((fields["path"], name, fields["reason_code"]))
+    return frozenset(reviewed)
+
+
+def report_exit_code(
+    report: dict[str, object], reviewed: frozenset[tuple[str, str, str]] = frozenset()
+) -> int:
     if report.get("execution_successful") is not True:
         return 2
     issues = report.get("issues")
-    if not isinstance(issues, list) or not _analyzers_complete(report):
+    if not isinstance(issues, list) or not _analyzers_complete(report, reviewed):
         return 2
     return 1 if issues else 0
 
 
 def main() -> int:
-    if len(sys.argv) != 2:
-        print("usage: check_skillspector_report.py REPORT.json", file=sys.stderr)
+    args = sys.argv[1:]
+    if len(args) not in (1, 3):
+        print("usage: check_skillspector_report.py REPORT.json [BASELINE.yaml SCAN_ROOT]", file=sys.stderr)
         return 2
     try:
-        report = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+        report = json.loads(Path(args[0]).read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
         print(f"invalid SkillSpector report: {exc}", file=sys.stderr)
         return 2
+    reviewed: frozenset[tuple[str, str, str]] = frozenset()
+    if len(args) == 3:
+        try:
+            baseline = yaml.safe_load(Path(args[1]).read_text(encoding="utf-8")) or {}
+            reviewed = reviewed_partials(baseline, Path(args[2]))
+        except (OSError, ValueError, yaml.YAMLError) as exc:
+            print(f"invalid reviewed_partials: {exc}", file=sys.stderr)
+            return 2
     if not isinstance(report, dict):
         print("invalid SkillSpector report: root must be an object", file=sys.stderr)
         return 2
-    code = report_exit_code(report)
+    code = report_exit_code(report, reviewed)
     if code == 1:
         print(f"SkillSpector report contains {len(report['issues'])} finding(s).", file=sys.stderr)
     elif code == 2:

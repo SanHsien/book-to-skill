@@ -1,2 +1,2 @@
 # Scanner fingerprints and completeness behavior are tied to this exact revision.
-skillspector @ git+https://github.com/SanHsien/SkillSpector.git@fe7adc7b94bc9f94161d88be7162ac794d9dadfd
+skillspector @ git+https://github.com/SanHsien/SkillSpector.git@350e638f316a6fcee8d90f8c3cd296e2d932cda3

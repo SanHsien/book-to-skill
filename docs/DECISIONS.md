@@ -417,7 +417,7 @@ PDF 的 model-free NativePdfPipeline 回報 backend parse failure，尚未區分
 
 **採用（本次實作）**
 
-- `75a7848`（#290）RTF 跳脫控制字：`\\par`、`\\'e9` 等被跳脫過的控制字樣式應以字面保留。上游測試檔在本 fork 先跑出 10 筆紅燈，`cherry-pick -x` 直接套用。
+- `75a7848`（#290）RTF 跳脫控制字：`\\par`、十六進位字元跳脫 等被跳脫過的控制字樣式應以字面保留。上游測試檔在本 fork 先跑出 10 筆紅燈，`cherry-pick -x` 直接套用。
 - `c766017`（#291）Markdown 程式碼圍欄結尾驗證：較短的圍欄標記或帶 info string 的標記不得關閉外層圍欄，否則圍欄內的範例會被當成章節標題。本 fork 先跑出 9 筆紅燈。
 - `a5534cb`（#292）殘缺 BOM 的純文字輸入應直接拒絕，不得回退到舊編碼。本 fork 先跑出 6 筆紅燈。
 - `fa69401`（#280）旁遮普文與 `55d4014`（#285）僧伽羅文章節偵測：本 fork 的 `utils.py` 章節樣式集合與上游不同，cherry-pick 衝突，以本地 Tamil／Telugu 的寫法最小重做。上游旁遮普測試以古吉拉特文標題做跨文字對照，本 fork 沒有古吉拉特樣式，對照只保留天城文那一半。
@@ -461,3 +461,22 @@ PDF 的 model-free NativePdfPipeline 回報 backend parse failure，尚未區分
 **理由**：SanHsien/SkillSpector 在 2026-09-27 又壓平一次 `main` 歷史（`13f43e09 chore: squash main history`），`82bbe8b` 從此沒有任何分支或 tag 指向，GitHub 的 compare API 回「No common ancestor」。目前還能以 SHA 抓到，但 GitHub 回收懸空物件後，全新安裝就會失敗。`fe7adc7` 在現行 `main` 上，`git diff 82bbe8b fe7adc7 -- src pyproject.toml` 為空：掃描器程式碼與套件宣告完全相同，版本號仍是 2.11.2，所以 exact fingerprint 與 gate 契約都不用動。
 
 **接續方式**：SkillSpector 每壓平一次歷史，就要重做這個檢查——`gh api repos/SanHsien/SkillSpector/compare/<pin>...main`，回 404 就代表 pin 已脫離 `main`；接著比對新舊 commit 的 `src`／`pyproject.toml` 是否相同，相同就只換 SHA，不同才需要重產 fingerprint。
+
+
+## 2026-10-24：SkillSpector pin 改到 2.12.0（`350e638`），gate 跟上新版契約
+
+**決定**：`requirements-security.txt` 與 `tests/test_repo_hygiene.py` 改釘 `350e638f316a6fcee8d90f8c3cd296e2d932cda3`（SanHsien/SkillSpector 同步上游 2.12.0）。掃描器版本變動讓 exact fingerprint 全部失效，逐筆搬移並補審新 finding。
+
+**指紋搬移**：指紋是「掃描器版本＋檔案內容＋finding 識別」的雜湊。對新掃描器回報的每個 finding 分別以 2.11.2 與 2.12.0 計算，舊雜湊對上 baseline 已審條目的就原地換成新雜湊、保留原理由（23 筆）；12 筆已不再產生的過期條目刪除。
+
+**gate 的三個契約變更**（`tools/check_skillspector_report.py`；agent-marketing-skills 同步修改）：
+
+1. 參照原因碼。2.12.0 把原本的 `reference_unresolved` 拆成兩種：找不到任何對應檔的 `reference_missing`，以及對到多個檔的 `reference_unresolved`。兩者都是非致命的 partial，都接受；未知原因碼仍失敗。
+
+2. 二進位排除。2.12.0 起，排除的二進位檔計為 completed（failed 為 0），以前計為 failed。兩種計法都接受。
+
+3. 已審例外 `reviewed_partials`，比照 agent-marketing-skills。2.12.0 的工具濫用分析器在 `README.en.md` 與 `SKILL.md` 碰到解析跨度上限，人工審過後登記。每筆綁定 staged 內容的 SHA-256，檔案一改就要重審。包裝器在交給掃描器前剝掉這個鍵，gate 把 baseline 與 staged 目錄傳給檢查器。新增 15 個測試，雜湊綁定與 partial 計數各做過突變驗證。
+
+**新 finding 審閱**：PR 範本的 HTML 註解、bidi 控制字元清理功能的測試樣本、`SKILLS_HOME` 安裝路徑說明、決策紀錄中說明 `npx skills` 已鎖版的文字、產品規格 frontmatter 無 `allowed-tools`（不改產品 `SKILL.md`），全部是自我指涉誤判，以具體理由收錄。
+
+**SC4 改用樣式規則**：這筆 finding 的內容來自即時 OSV 查詢，兩次掃描算出的精確指紋不同，改成 `rules:` 中限定本檔、套件名稱 `skillspector` 的規則。OSV 這次查到的是 `MAL-2026-6561`：PyPI 上冒充 NVIDIA/skillspector、夾帶預設開啟遙測的惡意套件（已下架）。本 repo 以 git URL 釘 SanHsien fork 的精確 commit，不經 PyPI；**不得改成從 PyPI 安裝**。

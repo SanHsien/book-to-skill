@@ -118,7 +118,7 @@ def test_optional_document_parsers_pin_reviewed_security_releases():
 def test_fresh_clone_gate_uses_the_pinned_security_scanner():
     requirement = (
         "skillspector @ git+https://github.com/SanHsien/SkillSpector.git@"
-        "fe7adc7b94bc9f94161d88be7162ac794d9dadfd"
+        "350e638f316a6fcee8d90f8c3cd296e2d932cda3"
     )
     assert requirement in (REPO_ROOT / "requirements-security.txt").read_text(
         encoding="utf-8"
@@ -159,6 +159,9 @@ def test_unstable_scanner_findings_use_narrow_suppression_rules():
         ("RP1", "docs/install.md", None),
         ("RP1", "docs/usage.md", None),
         ("AST4", "tests/test_repo_hygiene.py", "*subprocess*"),
+        # SC4's evidence comes from a live OSV lookup, so its exact fingerprint
+        # changes between runs; pinned to this file and this package name only.
+        ("SC4", "requirements-security.txt", "skillspector"),
     }
     actual = {
         (rule.get("id"), rule.get("path"), rule.get("message"))

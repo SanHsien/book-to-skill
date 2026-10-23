@@ -31,15 +31,29 @@ def main() -> int:
     args = parser.parse_args()
 
     result = None
+    scanner_baseline = None
     try:
+        import tempfile
+
+        import yaml
         from skillspector.cleanup import cleanup_result
         from skillspector.cli import FormatChoice, _result_body, _scan_state, graph
 
+        baseline = yaml.safe_load(args.baseline.read_text(encoding="utf-8")) or {}
+        if isinstance(baseline, dict) and "reviewed_partials" in baseline:
+            # Gate-only key: tools/check_skillspector_report.py reads it; the scanner
+            # never sees it.
+            stripped = {key: value for key, value in baseline.items() if key != "reviewed_partials"}
+            with tempfile.NamedTemporaryFile(
+                "w", encoding="utf-8", newline="\n", suffix=".yaml", delete=False
+            ) as handle:
+                yaml.safe_dump(stripped, handle, allow_unicode=True, sort_keys=False)
+                scanner_baseline = Path(handle.name)
         state = _build_state(
             _scan_state,
             input_path=args.input_path,
             output_format=FormatChoice.json,
-            baseline=args.baseline,
+            baseline=scanner_baseline or args.baseline,
         )
         result = _invoke_graph(graph, state)
         report_body = _result_body(result)
@@ -60,6 +74,8 @@ def main() -> int:
     finally:
         if result is not None:
             cleanup_result(result)
+        if scanner_baseline is not None:
+            scanner_baseline.unlink(missing_ok=True)
 
 
 if __name__ == "__main__":
