@@ -452,3 +452,12 @@ PDF 的 model-free NativePdfPipeline 回報 backend parse failure，尚未區分
 
 - `pypdf` 由 `6.20.0` 升到 `6.21.2`。自我掃描在 `pyproject.toml` 報 SC4：6.20.0 自上次審查後累積 6 筆 OSV advisory（JPEG 影像資料未驗證載入、取 form fields 時的長時間執行與大量記憶體、移除 tree items 的無窮迴圈、解析 content streams／arrays／dictionaries 的大量記憶體、`PdfWriter.find_outline_item` 的無窮迴圈），最後一筆於 `6.21.1` 修復。宣告在 `pyproject.toml` 兩處與 `tests/test_repo_hygiene.py` 的釘選斷言同步更新；PDF 與 hygiene 相關 89 筆測試在 6.21.2 下通過。這不是用 baseline 壓掉的誤判，是真的換版。
 - `.skillspector-baseline.yaml` 只換一筆雜湊：`tests/test_book_to_skill.py` 的 AE4（混合文字內容），因為本批加入旁遮普文與僧伽羅文測試樣本而換了內容雜湊，理由同步補上新的文字來源。沒有新增任何抑制項。
+
+
+## 2026-10-24：SkillSpector pin 從 `82bbe8b` 改釘 `fe7adc7`
+
+**決定**：`requirements-security.txt` 與 `tests/test_repo_hygiene.py` 的 pin 換成 `fe7adc7b94bc9f94161d88be7162ac794d9dadfd`。
+
+**理由**：SanHsien/SkillSpector 在 2026-09-27 又壓平一次 `main` 歷史（`13f43e09 chore: squash main history`），`82bbe8b` 從此沒有任何分支或 tag 指向，GitHub 的 compare API 回「No common ancestor」。目前還能以 SHA 抓到，但 GitHub 回收懸空物件後，全新安裝就會失敗。`fe7adc7` 在現行 `main` 上，`git diff 82bbe8b fe7adc7 -- src pyproject.toml` 為空：掃描器程式碼與套件宣告完全相同，版本號仍是 2.11.2，所以 exact fingerprint 與 gate 契約都不用動。
+
+**接續方式**：SkillSpector 每壓平一次歷史，就要重做這個檢查——`gh api repos/SanHsien/SkillSpector/compare/<pin>...main`，回 404 就代表 pin 已脫離 `main`；接著比對新舊 commit 的 `src`／`pyproject.toml` 是否相同，相同就只換 SHA，不同才需要重產 fingerprint。

@@ -148,15 +148,15 @@ fingerprints:
   rule_id: P1
   file: tests/test_scan_generated_skill.py
   reason: 已人工審查：Ignore previous instructions 是明確的負向測試輸入，assert 要求掃描器回報 prompt.ignore_previous。
-- hash: sha256:905515c20877c831ad6c9466995fb0e3d83b07f11970f13df243ab9c6ca0909b
+- hash: sha256:9b9c02613ca23e61f07cbd89cebed551ddd72a71766c5b02b50d51fdd5f0f589
   rule_id: SC4
   file: requirements-security.txt
   reason: 已人工審查：SkillSpector 以 SanHsien fork 的精確 Git commit 釘定；OSV 無法從 PEP 508 VCS URL 推導版本而以名稱查詢舊漏洞，並不代表該 commit 含未修補版本。
-- hash: sha256:043f695339b7dc0b2118aac1b1bf237049477a2280e13759e639d87386a47995
+- hash: sha256:e12bf0d60f5aad8257faf7c1655add27ff07dfd1977822daf85b75a6cae95bd5
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：文件明確禁止推送 upstream，並要求只推 SanHsien origin；這是安全邊界說明，不是參數濫用指令。雜湊綁檔案內容，每次追加決策條目都會換。
-- hash: sha256:bfcc6b059657237bd84e147656af0f2393dc706331e486d33a60ffaff68656d9
+- hash: sha256:ef2cc774bcbc7130c10fb3155406327e1d26d9e1de1ef703200fa54722801c8d
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：同一段禁止推送 upstream 的 normalized view；沒有執行路徑，且保留此文字能防止誤推母 repo。雜湊綁檔案內容，每次追加決策條目都會換。

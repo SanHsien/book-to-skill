@@ -118,7 +118,7 @@ def test_optional_document_parsers_pin_reviewed_security_releases():
 def test_fresh_clone_gate_uses_the_pinned_security_scanner():
     requirement = (
         "skillspector @ git+https://github.com/SanHsien/SkillSpector.git@"
-        "82bbe8bd88a624d13849ed29757ac568e5341732"
+        "fe7adc7b94bc9f94161d88be7162ac794d9dadfd"
     )
     assert requirement in (REPO_ROOT / "requirements-security.txt").read_text(
         encoding="utf-8"
