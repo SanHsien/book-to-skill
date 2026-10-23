@@ -226,6 +226,34 @@ _TE_CHAPTER = re.compile(
     rf"^\s*(?:#{{1,6}}\s+)?అధ్యాయ(?:ము|ం)\s*([0-9{_TE_DIGITS}]+)\b"
 )
 
+# Punjabi (Gurmukhi) chapter headings: "ਕਾਂਡ 1", "ਅਧਿਆਇ ੧", "## ਕਾਂਡ 2".
+# Punjabi uses two words for "chapter" — ਕਾਂਡ (usual in books) and ਅਧਿਆਇ — so
+# both are matched. ਅਧਿਆਇ resembles Devanagari अध्याय, but the scripts are
+# disjoint (Gurmukhi U+0A00-U+0A7F, Devanagari U+0900-U+097F), so neither
+# pattern can see the other's text. Gurmukhi digits (U+0A66-U+0A6F) are
+# positional, so only a digit remap is needed. Requiring a number right after
+# the word keeps prose from matching, whether it takes a postposition
+# ("ਕਾਂਡ ਵਿੱਚ") or inflects ("ਕਾਂਡਾਂ").
+_PA_DIGITS = "੦-੯"
+_PA_DIGIT_MAP = str.maketrans("੦੧੨੩੪੫੬੭੮੯", "0123456789")
+_PA_CHAPTER = re.compile(
+    rf"^\s*(?:#{{1,6}}\s+)?(?:ਕਾਂਡ|ਅਧਿਆਇ)\s*([0-9{_PA_DIGITS}]+)\b"
+)
+
+# Sinhala chapter headings: "පරිච්ඡේදය 1", "පරිච්ඡේදය ෨", "## පරිච්ඡේදය 2".
+# Modern Sinhala prints numbers with ASCII digits; the Lith digits
+# (U+0DE6-U+0DEF) are included for historical texts and remapped like the other
+# Indic blocks above. Only පරිච්ඡේදය is matched, not the Sanskrit loan අධ්‍යාය:
+# that word carries a ZERO WIDTH JOINER inside its conjunct, and the sanitizer
+# strips U+200D before structure detection ever sees the text, so a pattern
+# containing one could never match. Requiring a number keeps prose that merely
+# inflects the word ("පරිච්ඡේදයේ") from matching.
+_SI_DIGITS = "෦-෯"
+_SI_DIGIT_MAP = str.maketrans("෦෧෨෩෪෫෬෭෮෯", "0123456789")
+_SI_CHAPTER = re.compile(
+    rf"^\s*(?:#{{1,6}}\s+)?පරිච්ඡේදය\s*([0-9{_SI_DIGITS}]+)\b"
+)
+
 # Russian (Cyrillic) chapter headings: "Глава 1", "ГЛАВА 12", "## Глава 2".
 # Requiring whitespace then a number keeps prose forms from matching.
 _RU_CHAPTER = re.compile(r"^\s*(?:#{1,6}\s+)?глава\s+([0-9]+)\b", re.IGNORECASE)
@@ -739,6 +767,12 @@ def _match_chapter_number(
     tem = _TE_CHAPTER.match(s)
     if tem:
         return int(tem.group(1).translate(_TE_DIGIT_MAP))
+    pam = _PA_CHAPTER.match(s)
+    if pam:
+        return int(pam.group(1).translate(_PA_DIGIT_MAP))
+    sim = _SI_CHAPTER.match(s)
+    if sim:
+        return int(sim.group(1).translate(_SI_DIGIT_MAP))
     rum = _RU_CHAPTER.match(s)
     if rum:
         return int(rum.group(1))
@@ -771,6 +805,8 @@ def _chapter_number(line: str, prev_line: str | None = None) -> int | None:
     Tamil ("அத்தியாயம் 1", "அத்தியாயம் ௧", "## அத்தியாயம் 2"),
     Telugu ("అధ్యాయము 1", "అధ్యాయం ౧", "## అధ్యాయం 2"),
     Kannada ("ಅಧ್ಯಾಯ 1", "ಅಧ್ಯಾಯ ೧", "## ಅಧ್ಯಾಯ 2"),
+    Punjabi ("ਕਾਂਡ 1", "ਅਧਿਆਇ ੧", "## ਕਾਂਡ 2"),
+    Sinhala ("පරිච්ඡේදය 1", "පරිච්ඡේදය ෨", "## පරිච්ඡේදය 2"),
     Russian ("Глава 1", "ГЛАВА 12", "## Глава 2"),
     Greek ("Κεφάλαιο 1", "ΚΕΦΑΛΑΙΟ 12", "## Κεφάλαιο 2"),
     Korean ("제1장 총칙", "## 제4장 근로시간과 휴식"), and

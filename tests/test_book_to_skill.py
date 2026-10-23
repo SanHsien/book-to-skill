@@ -715,6 +715,42 @@ class TestDetectStructure:
         assert _chapter_number("ఈ అధ్యాయంలో మనం చర్చిస్తాము") is None
         assert _chapter_number("అధ్యాయం") is None
 
+    def test_detects_punjabi_chapters_and_rejects_prose(self):
+        """Both words (ਕਾਂਡ／ਅਧਿਆਇ) with Gurmukhi or Arabic digits."""
+        from book_to_skill.utils import _chapter_number
+
+        text = (
+            "ਕਾਂਡ ੧ ਜਾਣ-ਪਛਾਣ\nਸਾਰ\n"
+            "## ਅਧਿਆਇ ੨ ਢੰਗ\nਸਾਰ\n"
+            "ਕਾਂਡ 3 ਨਤੀਜੇ\nਸਾਰ"
+        )
+        assert detect_structure(text)["chapters_detected"] == 3
+        assert _chapter_number("ਇਸ ਕਾਂਡ ਵਿੱਚ ਅਸੀਂ ਚਰਚਾ ਕਰਾਂਗੇ") is None
+        assert _chapter_number("ਸਾਰੇ ਕਾਂਡਾਂ ਦੀ ਸੂਚੀ") is None
+        assert _chapter_number("ਕਾਂਡ") is None
+        assert _chapter_number("ਅਧਿਆਇ") is None
+
+    def test_punjabi_does_not_collide_with_devanagari(self):
+        """Gurmukhi (U+0A00-0A7F) and Devanagari (U+0900-097F) stay separate."""
+        from book_to_skill.utils import _chapter_number
+
+        assert _chapter_number("ਅਧਿਆਇ ੫") == 5
+        assert _chapter_number("अध्याय ५") == 5
+
+    def test_detects_sinhala_chapters_and_rejects_prose(self):
+        """`පරිච්ඡේදය N` with Arabic or Sinhala Lith digits."""
+        from book_to_skill.utils import _chapter_number
+
+        text = (
+            "පරිච්ඡේදය 1 හැඳින්වීම\nසාරාංශය\n"
+            "## පරිච්ඡේදය ෨ ක්‍රම\nසාරාංශය\n"
+            "පරිච්ඡේදය 3 ප්‍රතිඵල\nසාරාංශය"
+        )
+        assert detect_structure(text)["chapters_detected"] == 3
+        assert _chapter_number("මෙම පරිච්ඡේදයේ අපි සාකච්ඡා කරමු") is None
+        assert _chapter_number("තවත් පරිච්ඡේදයක් ඇත") is None
+        assert _chapter_number("පරිච්ඡේදය") is None
+
     # ── Korean chapter headings ────────────────────────────────────────────
 
     def test_korean_je_n_jang(self):
