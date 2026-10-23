@@ -407,3 +407,31 @@ pattern 在本 fork 的主要平台上等於全部失效（舊的 `\s*$` 是靠 
 | [#289](https://github.com/virgiliojr94/book-to-skill/pull/289) `ee0429fcf5e24cb44148ab70b0b69b3fb8904cb0` | 不適用 | 完整 diff 只改 `tools/evals/score.py` 的 negative usage → unknown 及 `tests/evals/test_score.py` 的 totals regression；fork 沒有這兩個路徑，也沒有該 eval subsystem，沿用 #185／#200／#225 排除決策。重訪：正式引入 eval replay／usage aggregation 時，連同 bool／負數／unknown／真實零值回歸一起採用。 |
 
 本窗口發布仍須 canonical Windows gate 與一次 focused fresh review；完整 diff、命令、fulltree hashes 與驗證 logs 保存在本機 fleet outputs。
+
+
+## 2026-10-24：commit `e180fc4`→`a24e62f`、PR #290–#301、issue #284–#299
+
+水位推到 commit `a24e62f4d8caf2ee433f6e48d9073800f56f906e`、PR 301、issue 299。採用的每一筆都先在本 fork 重現缺陷或確認內容缺口，再實作並驗證。
+
+| 項目 | 判斷 | 本 fork 的證據與範圍 |
+| --- | --- | --- |
+| `75a7848`（[#290](https://github.com/virgiliojr94/book-to-skill/pull/290)） | 採用（`cherry-pick -x`） | 跳脫過的控制字樣式（`\par`、`\'e9`、`\u945?`）應以字面保留。上游測試檔在本 fork 先跑出 10 筆紅燈。 |
+| `c766017`（[#291](https://github.com/virgiliojr94/book-to-skill/pull/291)） | 採用（`cherry-pick -x`） | 較短的圍欄標記或帶 info string 的標記不得關閉外層圍欄，否則圍欄內的章節範例會被計為章節。本 fork 先跑出 9 筆紅燈。 |
+| `a5534cb`（[#292](https://github.com/virgiliojr94/book-to-skill/pull/292)） | 採用（`cherry-pick -x`） | 殘缺 BOM 的純文字輸入要直接拒絕，不得回退舊編碼。本 fork 先跑出 6 筆紅燈。 |
+| `fa69401`（[#280](https://github.com/virgiliojr94/book-to-skill/pull/280)）、`55d4014`（[#285](https://github.com/virgiliojr94/book-to-skill/pull/285)） | 採用（最小重做） | 本 fork 的章節樣式集合與上游不同，cherry-pick 衝突。照既有 Tamil／Telugu 寫法補 `_PA_CHAPTER`（ਕਾਂਡ／ਅਧਿਆਇ）與 `_SI_CHAPTER`（පරිච්ඡේදය）與各自的數字 remap。上游旁遮普測試以古吉拉特文做跨文字對照，本 fork 無該樣式，對照只保留天城文那一半。 |
+| [#296](https://github.com/virgiliojr94/book-to-skill/pull/296)（issue [#295](https://github.com/virgiliojr94/book-to-skill/issues/295)） | 採用未合併 | 非 BMP 字元在 RTF 寫成兩個 `\uN`，各自解碼後被當落單 surrogate 丟棄。上游測試檔在本 fork 6 筆中紅 5 筆。上游分支該 commit 為 CRLF（靠後續 commit 正規化），本次採用改回 LF。[#297](https://github.com/virgiliojr94/book-to-skill/pull/297) 修同一缺陷但改在 `tests/test_book_to_skill.py`，由 #296 涵蓋。 |
+| `72b4d38`（[#278](https://github.com/virgiliojr94/book-to-skill/pull/278)） | 內容已有，補守門測試 | Codex 早已列在 README、README.en.md 與 docs/index.md。上游測試以英文 `README.md` 行標記為鍵；本 fork 該檔是繁中入口，標記拆成繁中 README 與英文鏡像兩檔。 |
+| `9822d8d`、`aeb77ba`、`6f682c9` | 已採用 | 對應測試檔與上游逐位元組相同。 |
+| `1568377`（#273） | 已採用（本地改寫） | 測試改為 in-process：monkeypatch `OUTPUT_DIR`／`OUTPUT_TEXT`／`OUTPUT_META` 後直接呼叫 `utils.main()`，不走 subprocess。 |
+| `36bb7f2`（#266） | 已採用 | `parsers/epub.py` 已含 spine 排序、非 document item 略過與 identity 去重。 |
+| `a3ba8dc`（#287） | 已採用 | 由 `e456b66` 完成。 |
+| `dbe8b37`（#267） | 不適用 | 本 fork 無 resume／fingerprint 子系統；`_sha256_file`、`reuse_is_safe` 不存在，上游測試在匯入階段即失敗。重訪：導入 resume 時連同重複來源計數一併採用。 |
+| `e47a097`（#284）、`cf06be1`（#286） | 不適用 | evals 子系統未引進，沿用 #185／#200／#225 的排除決策。 |
+| [#301](https://github.com/virgiliojr94/book-to-skill/pull/301)、issue [#299](https://github.com/virgiliojr94/book-to-skill/issues/299) | 不適用 | 屬 pdf-inspector；本 fork 未引進該模組，原始碼無 `fallback_reason`。 |
+| [#298](https://github.com/virgiliojr94/book-to-skill/pull/298) | 不適用 | 上游的 lens 清單不一致來自 hermes／openclaw／opencode 的合併殘留。本 fork 只有 claude／copilot／amp 三個 lens，`README.md` 與 `docs/architecture.md` 的敘述與 `LENSES` 的鍵完全相符。 |
+| `baee4ff`（#281） | 略過 | `AGENTS.md` 明定不新增或恢復其他語系 README。 |
+| `a8af014` | 略過 | 上游替自家 repo 加 star-history 徽章。 |
+| `a24e62f`（#294）、[#300](https://github.com/virgiliojr94/book-to-skill/pull/300) | 略過 | 只動上游自家的 `.github/workflows`；本 fork 的 workflow 自持。 |
+| [#293](https://github.com/virgiliojr94/book-to-skill/pull/293) | 等合併 | 希伯來文 `פרק` 章節偵測。未合併且屬新功能，不是本 fork 能證明的缺陷。重訪：上游合併後比照旁遮普／僧伽羅最小重做。 |
+
+同批自我掃描在 `pyproject.toml` 報 SC4：`pypdf==6.20.0` 自上次審查後累積 6 筆 OSV advisory，最後一筆於 6.21.1 修復，因此升到 6.21.2（`pyproject.toml` 兩處與 `tests/test_repo_hygiene.py` 的釘選斷言同步）。`.skillspector-baseline.yaml` 只換 `tests/test_book_to_skill.py` 的 AE4 雜湊，沒有新增抑制項。

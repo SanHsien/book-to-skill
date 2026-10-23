@@ -409,3 +409,46 @@ PDF 的 model-free NativePdfPipeline 回報 backend parse failure，尚未區分
 - #288 完整 diff 的 SDT ToC 漏文已由目前 block／inline 有文字 SDT 安全 ZIP fallback 涵蓋；保留 defusedxml、DOCTYPE／ENTITY 拒絕、重複次數與順序，不改為上游僅判斷 top-level children 的 helper。
 - #289 negative replay usage 屬未導入的 eval subsystem，不套用。未宣稱其 runtime 已修復；若未來引入 usage aggregation，必須一起驗證負數 unknown、bool、真實零值及 totals 不互相抵消。
 - 只審到 PR #289，commit／issue 水位不變。最終 canonical gate 與 focused fresh review 是發布條件；原 scanner reference-resolution 非致命 partial 限制持續明記，不宣稱真實書籍、外部模型或原生 POSIX live 驗收。
+
+
+## 2026-10-24：上游批次審查到 `a24e62f`（PR #301、issue #299）
+
+18 個 commit、10 個 PR、2 個 issue 逐筆處置。採用的每一筆都先在本 fork 重現缺陷或確認內容缺口，再實作與驗證。
+
+**採用（本次實作）**
+
+- `75a7848`（#290）RTF 跳脫控制字：`\\par`、`\\'e9` 等被跳脫過的控制字樣式應以字面保留。上游測試檔在本 fork 先跑出 10 筆紅燈，`cherry-pick -x` 直接套用。
+- `c766017`（#291）Markdown 程式碼圍欄結尾驗證：較短的圍欄標記或帶 info string 的標記不得關閉外層圍欄，否則圍欄內的範例會被當成章節標題。本 fork 先跑出 9 筆紅燈。
+- `a5534cb`（#292）殘缺 BOM 的純文字輸入應直接拒絕，不得回退到舊編碼。本 fork 先跑出 6 筆紅燈。
+- `fa69401`（#280）旁遮普文與 `55d4014`（#285）僧伽羅文章節偵測：本 fork 的 `utils.py` 章節樣式集合與上游不同，cherry-pick 衝突，以本地 Tamil／Telugu 的寫法最小重做。上游旁遮普測試以古吉拉特文標題做跨文字對照，本 fork 沒有古吉拉特樣式，對照只保留天城文那一半。
+- 未合併的 #296（issue #295）RTF surrogate pair：非 BMP 字元在 RTF 寫成兩個 `\\uN`，原本各自解碼後被當成落單 surrogate 丟掉，emoji 等字元會從抽取結果消失。上游測試檔在本 fork 6 筆中 5 筆紅燈，確認同缺陷後採用。上游分支的該 commit 是 CRLF、靠後續 commit 正規化，本次採用一律改回 LF。#297 修同一缺陷但改在 `tests/test_book_to_skill.py`，由 #296 涵蓋。
+- `72b4d38`（#278）host 清單：Codex 在本 fork 的 README、README.en.md 與 docs/index.md 早已列入，缺的只是守門測試。上游測試以英文 `README.md` 的行標記為鍵，本 fork 該檔是繁中入口、英文在 `README.en.md`，因此標記拆成兩檔，繁中的用繁中字串。
+
+**已採用，本次只核對**
+
+- `9822d8d`（#255 Docling fallback 回報）、`aeb77ba`（#279 Part 標題下的章節計數）、`6f682c9`（#277 康熙部首折疊）：對應測試檔與上游逐位元組相同。
+- `1568377`（#273 每來源的結構章節計數）：已採用，測試改寫為 in-process（monkeypatch `OUTPUT_DIR` 後直接呼叫 `utils.main()`），不走 subprocess。
+- `36bb7f2`（#266 EPUB spine 順序）：`parsers/epub.py` 已含 spine 排序、非 document item 略過與 identity 去重。
+- `a3ba8dc`（#287 波斯文 ZWNJ ordinal）：已由 `e456b66` 採用。
+
+**不適用（本 fork 沒有該子系統）**
+
+- `dbe8b37`（#267 resume 重複來源計數）：本 fork 沒有 resume／fingerprint 子系統，`_sha256_file`、`reuse_is_safe` 都不存在，上游測試在匯入階段就失敗。
+- `e47a097`（#284）、`cf06be1`（#286）與 PR #300 之外的 evals 變更：未引入 evals 子系統。
+- PR #301 與 issue #299（`KeyError: 'fallback_reason'`）：屬 pdf-inspector，本 fork 未引進該模組，原始碼中無 `fallback_reason`。
+- PR #298（validate_skill 的 lens 清單與文件不一致）：上游的不一致來自 hermes／openclaw／opencode 三個 lens 的合併殘留；本 fork 只有 claude／copilot／amp 三個 lens，`README.md` 與 `docs/architecture.md` 的描述與 `LENSES` 的鍵完全相符，沒有這個缺陷。
+
+**略過**
+
+- `baee4ff`（#281 俄文 README 在地化）：`AGENTS.md` 明定不新增或恢復其他語系 README。
+- `a8af014`：上游替自己的 repo 加 star-history 徽章。
+- `a24e62f`（#294）與 PR #300：只動上游自己的 `.github/workflows`，本 fork 的 workflow 自持。
+
+**等上游合併**
+
+- PR #293（希伯來文 `פרק` 章節偵測）。
+
+**同批抓到的安全更新**
+
+- `pypdf` 由 `6.20.0` 升到 `6.21.2`。自我掃描在 `pyproject.toml` 報 SC4：6.20.0 自上次審查後累積 6 筆 OSV advisory（JPEG 影像資料未驗證載入、取 form fields 時的長時間執行與大量記憶體、移除 tree items 的無窮迴圈、解析 content streams／arrays／dictionaries 的大量記憶體、`PdfWriter.find_outline_item` 的無窮迴圈），最後一筆於 `6.21.1` 修復。宣告在 `pyproject.toml` 兩處與 `tests/test_repo_hygiene.py` 的釘選斷言同步更新；PDF 與 hygiene 相關 89 筆測試在 6.21.2 下通過。這不是用 baseline 壓掉的誤判，是真的換版。
+- `.skillspector-baseline.yaml` 只換一筆雜湊：`tests/test_book_to_skill.py` 的 AE4（混合文字內容），因為本批加入旁遮普文與僧伽羅文測試樣本而換了內容雜湊，理由同步補上新的文字來源。沒有新增任何抑制項。
