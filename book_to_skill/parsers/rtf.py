@@ -22,6 +22,34 @@ def _rtf_unicode_repl(match: re.Match) -> str:
     return chr(cp)
 
 
+def _decode_rtf_unicode(raw: str) -> str:
+    """Combine adjacent UTF-16 surrogate escapes before dropping lone halves."""
+    out: list[str] = []
+    cursor = 0
+    escapes = iter(_RTF_UNICODE.finditer(raw))
+    match = next(escapes, None)
+    while match is not None:
+        out.append(raw[cursor:match.start()])
+        high = int(match.group(1)) % 0x10000
+        following = next(escapes, None)
+        if (
+            0xD800 <= high <= 0xDBFF
+            and following is not None
+            and following.start() == match.end()
+        ):
+            low = int(following.group(1)) % 0x10000
+            if 0xDC00 <= low <= 0xDFFF:
+                out.append(chr(0x10000 + (high - 0xD800) * 0x400 + low - 0xDC00))
+                cursor = following.end()
+                match = next(escapes, None)
+                continue
+        out.append(_rtf_unicode_repl(match))
+        cursor = match.end()
+        match = following
+    out.append(raw[cursor:])
+    return "".join(out)
+
+
 def _rtf_ansi_encoding(raw: str) -> str:
     """Return the declared ANSI code page, defaulting to Windows-1252."""
     match = _RTF_ANSI_CODEPAGE.search(raw)
@@ -141,7 +169,7 @@ def strip_rtf_fallback(raw: str) -> str:
         .replace("\\}", "\x03")
     )
     ansi_encoding = _rtf_ansi_encoding(raw)
-    raw = _RTF_UNICODE.sub(_rtf_unicode_repl, raw)   # decode \uN escapes first
+    raw = _decode_rtf_unicode(raw)   # decode \uN escapes first
     # A hex byte immediately following \uN is its compatibility fallback and
     # was consumed by _RTF_UNICODE above. Any remaining \'hh escapes are actual
     # document text. Decode adjacent bytes as a run so multibyte code pages work.
