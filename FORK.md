@@ -18,7 +18,7 @@
 | 項目 | 說明 |
 |---|---|
 | `README.md` / `README.en.md` | 繁中主檔 + 英文鏡像；不保留 `README.ru.md` 或其他語系 |
-| `AGENTS.md` / `CLAUDE.md` | 本 fork 的 AI 維護單一真相源 |
+| `AGENTS.md` | 本 fork 的 AI 維護單一真相源 |
 | `NOTICE.md` / `FORK.md` | 來源、授權與同步說明 |
 | `tools/dev_check.ps1` | Windows 本機一鍵 gate |
 | `.github/workflows/ci.yml` | 新增 Windows pytest / ruff / SKILL 驗證 job |

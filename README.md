@@ -198,7 +198,7 @@ ocrmypdf input.pdf output.pdf
 - **繁體中文為主的公開入口**：`README.md` 是中文主檔，英文鏡像在 `README.en.md`。
 - **Windows-first 開發環境**：PowerShell `tools\dev_check.ps1`、venv 指令、CI 的 Windows job。
 - **上游追蹤**：每週檢查 `virgiliojr94/book-to-skill` 的 `master`，有未審查 commit 就讓 workflow 失敗。
-- **Agent 維護規則**：`AGENTS.md` 是單一真相源；`CLAUDE.md` 只補 Claude Code 入口。
+- **Agent 維護規則**：`AGENTS.md` 是單一真相源；Claude Code 直接讀取，不另立 `CLAUDE.md`。
 - **不部署上游文件站**：fork 不會把 MkDocs 推到 `booktoskill.is-a.dev`。
 
 產品抽取器、`SKILL.md` 規格與選配格式支援仍以上游為準。
