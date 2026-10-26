@@ -6,6 +6,7 @@ import os
 import re
 import statistics
 import sys
+import time
 
 # Keep a deployed skill directory clean: importing the package below would
 # otherwise write __pycache__/*.pyc beside the sources, leaving build artifacts
@@ -1384,6 +1385,17 @@ def _lock_holder_pid(lock: Path):
     return None if alive is False else pid
 
 
+_LOCK_SETTLE_SECONDS = 2.0
+
+
+def _lock_is_unwritten(lock: Path) -> bool:
+    """True for a lock file that exists but holds no PID yet (claim in progress)."""
+    try:
+        return not lock.read_text(encoding="utf-8").strip()
+    except OSError:
+        return False
+
+
 def claim_workdir(workdir: Path = None) -> Path:
     """Take exclusive ownership of the extraction workdir.
 
@@ -1407,8 +1419,12 @@ def claim_workdir(workdir: Path = None) -> Path:
 
     # Check-then-write alone lets two runs started together both see "free" and
     # the second write win in silence. Creating the lock exclusively makes the
-    # claim itself the arbiter; losing it loops back to re-read the winner.
-    for _ in range(3):
+    # claim itself the arbiter. The winner writes its PID just after creating the
+    # file, so a lock that is still empty and fresh is a claim in progress, not a
+    # stale one: wait for it instead of deleting it.
+    deadline = time.monotonic() + _LOCK_SETTLE_SECONDS
+    final_pass = False
+    while True:
         holder = _lock_holder_pid(lock)
         if holder is not None:
             raise ExtractionError(
@@ -1420,18 +1436,28 @@ def claim_workdir(workdir: Path = None) -> Path:
         try:
             fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
         except FileExistsError:
+            if time.monotonic() < deadline and _lock_is_unwritten(lock):
+                time.sleep(0.05)
+                continue
             # Stale or our own lock: clear it and retry. A live holder is left
             # in place and reported by the next pass.
             if _lock_holder_pid(lock) is None:
-                lock.unlink(missing_ok=True)
+                try:
+                    lock.unlink(missing_ok=True)
+                except PermissionError:
+                    # The winner still has it open (Windows): it is not stale.
+                    pass
+            if time.monotonic() >= deadline:
+                if final_pass:
+                    raise ExtractionError(
+                        f"Could not claim extraction workdir {workdir}: another run "
+                        "keeps taking its lock. Set BOOK_SKILL_WORKDIR to a private path."
+                    )
+                final_pass = True
             continue
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             handle.write(str(os.getpid()))
         return workdir
-    raise ExtractionError(
-        f"Could not claim extraction workdir {workdir}: another run keeps "
-        "taking its lock. Set BOOK_SKILL_WORKDIR to a private path."
-    )
 
 
 def release_workdir(workdir: Path = None) -> None:

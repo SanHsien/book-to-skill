@@ -72,7 +72,9 @@ def test_stale_lock_is_reclaimed(tmp_path):
 
 
 @pytest.mark.parametrize("junk", ["", "   ", "not-a-pid", "\x00"])
-def test_unreadable_lock_is_treated_as_free(tmp_path, junk):
+def test_unreadable_lock_is_treated_as_free(tmp_path, monkeypatch, junk):
+    # An empty lock is only waited on while it may still be being written.
+    monkeypatch.setattr(utils, "_LOCK_SETTLE_SECONDS", 0)
     wd = tmp_path / "work"
     wd.mkdir()
     (wd / _WORKDIR_LOCK_NAME).write_text(junk)
@@ -203,6 +205,34 @@ def test_claim_loses_race_when_another_run_locks_between_check_and_write(
         with pytest.raises(ExtractionError, match="already in use"):
             claim_workdir(wd)
         assert (wd / _WORKDIR_LOCK_NAME).read_text().strip() == str(holder.pid)
+    finally:
+        holder.terminate()
+        holder.wait(timeout=10)
+
+
+def test_claim_waits_for_a_lock_that_is_created_but_not_yet_written(
+    tmp_path, monkeypatch
+):
+    """O_EXCL creates the lock empty and the winner writes its PID afterwards.
+
+    A loser arriving in that gap reads an empty file; treating that as "stale"
+    deletes the winner's live lock (or, on Windows, crashes with PermissionError).
+    An empty, fresh lock must be waited on, then judged by the PID it ends up with.
+    """
+    wd = tmp_path / "work"
+    wd.mkdir()
+    lock = wd / _WORKDIR_LOCK_NAME
+    lock.write_text("", encoding="utf-8")
+    holder = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+
+    def winner_finishes_writing(_seconds):
+        lock.write_text(str(holder.pid), encoding="utf-8")
+
+    monkeypatch.setattr(utils.time, "sleep", winner_finishes_writing)
+    try:
+        with pytest.raises(ExtractionError, match="already in use"):
+            claim_workdir(wd)
+        assert lock.read_text().strip() == str(holder.pid)
     finally:
         holder.terminate()
         holder.wait(timeout=10)
