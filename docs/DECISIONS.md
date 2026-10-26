@@ -484,7 +484,7 @@ PDF 的 model-free NativePdfPipeline 回報 backend parse failure，尚未區分
 
 ## 2026-10-26：第二輪深度掃描——`claim_workdir` 競態已修，上游原有缺陷列入觀察清單
 
-**已修**：`claim_workdir`（fork 自有，採自上游 PR #126 的概念）先檢查持有者、再寫鎖檔，兩個同時啟動的抽取會都看到「無鎖」，後寫者靜默覆蓋 `full_text.txt`。改以 `O_EXCL` 獨占建立鎖檔；失敗時重讀持有者，活著就拒絕，過期或自己的鎖才清除重試。重現測試 `test_claim_loses_race_when_another_run_locks_between_check_and_write`。
+**已修**：`claim_workdir`（fork 自有，採自上游 PR #126 的概念）先檢查持有者、再寫鎖檔，兩個同時啟動的抽取會都看到「無鎖」，後寫者靜默覆蓋 `full_text.txt`。改以 `O_EXCL` 獨占建立鎖檔；失敗時重讀持有者，活著就拒絕，過期或自己的鎖才清除重試。重現測試 `test_claim_loses_race_when_another_run_locks_between_check_and_write`。獨占建立的檔案先是空的、之後才寫 PID，所以剛建立的空鎖在 `_LOCK_SETTLE_SECONDS`（2 秒）內視為宣告中並等待，不當成過期鎖刪除（否則會刪到勝出者的有效鎖，Windows 上則拋 PermissionError），測試 `test_claim_waits_for_a_lock_that_is_created_but_not_yet_written`。仍有的窄窗：兩個執行同時回收同一個過期鎖時，後者可能刪到前者剛建的空鎖（主要在 POSIX；Windows 上檔案開著無法刪）；完全封閉需要 rename 式原子接手或 OS 檔案鎖，列入觀察。
 
 **觀察清單（上游原有，不改）**：
 - `parse_arguments` 與 `normalize_install_mode`：`--install-missing` 後面只要不是 `--` 開頭就被當成值吞掉，所以 `extract.py --install-missing book.pdf` 會把 `book.pdf` 當成模式（落回 `ask`），輸入檔消失而報「No input document」。`SKILL.md` 的標準呼叫把 `--install-missing ask` 放在最後，不受影響。觸發條件：上游修掉，或本 fork 的呼叫端改成把旗標放在檔名之前。

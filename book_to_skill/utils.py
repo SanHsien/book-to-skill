@@ -1454,6 +1454,8 @@ def claim_workdir(workdir: Path = None) -> Path:
                         "keeps taking its lock. Set BOOK_SKILL_WORKDIR to a private path."
                     )
                 final_pass = True
+            else:
+                time.sleep(0.05)
             continue
         with os.fdopen(fd, "w", encoding="utf-8") as handle:
             handle.write(str(os.getpid()))
