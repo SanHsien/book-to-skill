@@ -111,10 +111,18 @@ fingerprints:
   rule_id: AST7
   file: tests/test_html_block_boundaries.py
   reason: 自我指涉：tests/test_html_block_boundaries.py 使用 pytest parametrize 搭配 getattr 存取測試類別上固定的屬性名稱（皆為程式內寫死的常數字串），非任意屬性存取。
-- hash: sha256:0dcd28d82ac6faab65de784b9b58bf5e9bbab1eaf8b46bdb3da0b50dd21bf510
+- hash: sha256:d464dabf7b16cfa670ca92f07d7a3512980fe24a511fc6ecadde0a1b30401d50
   rule_id: AST4
   file: tests/test_workdir_lock.py
-  reason: 自我指涉：測試啟動一個固定執行 30 秒的 Python 子程序，驗證 workdir 鎖能辨識仍存活的不同 PID；命令與參數皆為測試內常數，且 finally 會終止並等待子程序。
+  reason: 自我指涉：測試啟動一個固定執行 30 秒的 Python 子程序，驗證 workdir 鎖能辨識仍存活的不同 PID（含競態與寫入中空鎖兩個重現測試）；命令與參數皆為測試內常數，且 finally 會終止並等待子程序。
+- hash: sha256:1c59df01ba7ccd23151b8a275efbf1cc10fed236fc86b08d5776634b996d6b46
+  rule_id: AST4
+  file: tests/test_workdir_lock.py
+  reason: 自我指涉：測試啟動一個固定執行 30 秒的 Python 子程序，驗證 workdir 鎖能辨識仍存活的不同 PID（含競態與寫入中空鎖兩個重現測試）；命令與參數皆為測試內常數，且 finally 會終止並等待子程序。
+- hash: sha256:779cf503424d0e85f7a0843ff0a54f445c7188c171e0dcc01f29f95b30038c1a
+  rule_id: AST4
+  file: tests/test_workdir_lock.py
+  reason: 自我指涉：測試啟動一個固定執行 30 秒的 Python 子程序，驗證 workdir 鎖能辨識仍存活的不同 PID（含競態與寫入中空鎖兩個重現測試）；命令與參數皆為測試內常數，且 finally 會終止並等待子程序。
 - hash: sha256:124828d07091cbbd3d74ab158d870590f1d695ea9911fd610f5c7e68e3c6bd9c
   rule_id: AST4
   file: tests/test_stage_scan_input.py
@@ -223,19 +231,19 @@ fingerprints:
   rule_id: RA2
   file: SKILL.md
   reason: "2026-10-24 隨 SkillSpector 2.12.0 審閱：安裝路徑說明（把 SKILLS_HOME 設為 ~/.agents/skills），是技能落地位置的規格，不是跨 session 持久化指令。"
-- hash: sha256:860e344d0a80edeec534b0fa134d7bc0061bc7575be45a400fe6d37f35ecb23f
+- hash: sha256:593c5dd71bfdeaaddc1396d8ae951311804fdf360bd4435eadcabefb5e2c832c
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：文件明確禁止推送 upstream，並要求只推 SanHsien origin；這是安全邊界說明，不是參數濫用指令。雜湊綁檔案內容，每次追加決策條目都會換。
-- hash: sha256:9458f2a1ef1ddc0025dee26df60211144c62883e42e0dbe96fa2ba260f9858c7
+- hash: sha256:fca22bbe7bd788051e67a9540322f8af1f7aeba6164f6f952e7ef0665a4ea153
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：同一段禁止推送 upstream 的 normalized view；沒有執行路徑，且保留此文字能防止誤推母 repo。雜湊綁檔案內容，每次追加決策條目都會換。
-- hash: sha256:19ecdfb33ede850ce92cdd9f1327c5c6aa0e9d0cd818d63a988d65ba2837755b
+- hash: sha256:98ad3f348bf31c8feced1224fff73e15f1a1ff156261d37ea0c53655710cb6b0
   rule_id: RP1
   file: docs/DECISIONS.md
   reason: "2026-10-24 隨 SkillSpector 2.12.0 審閱：決策紀錄在說明發布說明裡的 `npx skills` 已固定為 skills@1.5.23，本身就是鎖版的紀錄，不是要執行的未鎖版指令。"
-- hash: sha256:2ac12f0760f8077cb7c1ed5d85edde97b96cb6248c7698050a16572015ff4656
+- hash: sha256:11de163502932620a2f07bb46e33fdc8a6cd8c4c954e42bc4cdac8b910e24e85
   rule_id: RP1
   file: docs/DECISIONS.md
   reason: "2026-10-24 隨 SkillSpector 2.12.0 審閱：決策紀錄在說明發布說明裡的 `npx skills` 已固定為 skills@1.5.23，本身就是鎖版的紀錄，不是要執行的未鎖版指令。"
