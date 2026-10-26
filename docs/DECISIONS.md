@@ -480,3 +480,12 @@ PDF 的 model-free NativePdfPipeline 回報 backend parse failure，尚未區分
 **新 finding 審閱**：PR 範本的 HTML 註解、bidi 控制字元清理功能的測試樣本、`SKILLS_HOME` 安裝路徑說明、決策紀錄中說明 `npx skills` 已鎖版的文字、產品規格 frontmatter 無 `allowed-tools`（不改產品 `SKILL.md`），全部是自我指涉誤判，以具體理由收錄。
 
 **SC4 改用樣式規則**：這筆 finding 的內容來自即時 OSV 查詢，兩次掃描算出的精確指紋不同，改成 `rules:` 中限定本檔、套件名稱 `skillspector` 的規則。OSV 這次查到的是 `MAL-2026-6561`：PyPI 上冒充 NVIDIA/skillspector、夾帶預設開啟遙測的惡意套件（已下架）。本 repo 以 git URL 釘 SanHsien fork 的精確 commit，不經 PyPI；**不得改成從 PyPI 安裝**。
+
+
+## 2026-10-26：第二輪深度掃描——`claim_workdir` 競態已修，上游原有缺陷列入觀察清單
+
+**已修**：`claim_workdir`（fork 自有，採自上游 PR #126 的概念）先檢查持有者、再寫鎖檔，兩個同時啟動的抽取會都看到「無鎖」，後寫者靜默覆蓋 `full_text.txt`。改以 `O_EXCL` 獨占建立鎖檔；失敗時重讀持有者，活著就拒絕，過期或自己的鎖才清除重試。重現測試 `test_claim_loses_race_when_another_run_locks_between_check_and_write`。
+
+**觀察清單（上游原有，不改）**：
+- `parse_arguments` 與 `normalize_install_mode`：`--install-missing` 後面只要不是 `--` 開頭就被當成值吞掉，所以 `extract.py --install-missing book.pdf` 會把 `book.pdf` 當成模式（落回 `ask`），輸入檔消失而報「No input document」。`SKILL.md` 的標準呼叫把 `--install-missing ask` 放在最後，不受影響。觸發條件：上游修掉，或本 fork 的呼叫端改成把旗標放在檔名之前。
+- `--mode` 後面接檔名同理（值被吞、模式落回 `text`）。
