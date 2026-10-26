@@ -176,3 +176,33 @@ def _find_unused_pid() -> int:
         if utils._pid_is_alive(pid) is False:
             return pid
     pytest.skip("no free PID found to simulate a stale lock")
+
+
+def test_claim_loses_race_when_another_run_locks_between_check_and_write(
+    tmp_path, monkeypatch
+):
+    """Checking for a holder and then writing the lock must be one atomic step.
+
+    Two runs started together both see "no lock", and the second write used to win
+    in silence -- the exact overwrite the lock exists to prevent. Here a real child
+    process takes the lock after our check has said "free" but before we write.
+    """
+    wd = tmp_path / "work"
+    wd.mkdir()
+    holder = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    real_holder_pid = utils._lock_holder_pid
+
+    def racing_check(lock):
+        result = real_holder_pid(lock)
+        if not lock.exists():
+            lock.write_text(str(holder.pid), encoding="utf-8")
+        return result
+
+    monkeypatch.setattr(utils, "_lock_holder_pid", racing_check)
+    try:
+        with pytest.raises(ExtractionError, match="already in use"):
+            claim_workdir(wd)
+        assert (wd / _WORKDIR_LOCK_NAME).read_text().strip() == str(holder.pid)
+    finally:
+        holder.terminate()
+        holder.wait(timeout=10)

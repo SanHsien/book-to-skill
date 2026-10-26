@@ -1405,17 +1405,33 @@ def claim_workdir(workdir: Path = None) -> Path:
     prepare_output_dir(workdir)
     lock = workdir / _WORKDIR_LOCK_NAME
 
-    holder = _lock_holder_pid(lock)
-    if holder is not None:
-        raise ExtractionError(
-            f"Extraction workdir {workdir} is already in use by PID {holder}. "
-            "Concurrent runs would overwrite each other's full_text.txt. "
-            "Give this run its own directory: set BOOK_SKILL_WORKDIR to a "
-            "private path, or wait for the other run to finish."
-        )
-
-    lock.write_text(str(os.getpid()), encoding="utf-8")
-    return workdir
+    # Check-then-write alone lets two runs started together both see "free" and
+    # the second write win in silence. Creating the lock exclusively makes the
+    # claim itself the arbiter; losing it loops back to re-read the winner.
+    for _ in range(3):
+        holder = _lock_holder_pid(lock)
+        if holder is not None:
+            raise ExtractionError(
+                f"Extraction workdir {workdir} is already in use by PID {holder}. "
+                "Concurrent runs would overwrite each other's full_text.txt. "
+                "Give this run its own directory: set BOOK_SKILL_WORKDIR to a "
+                "private path, or wait for the other run to finish."
+            )
+        try:
+            fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+        except FileExistsError:
+            # Stale or our own lock: clear it and retry. A live holder is left
+            # in place and reported by the next pass.
+            if _lock_holder_pid(lock) is None:
+                lock.unlink(missing_ok=True)
+            continue
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(str(os.getpid()))
+        return workdir
+    raise ExtractionError(
+        f"Could not claim extraction workdir {workdir}: another run keeps "
+        "taking its lock. Set BOOK_SKILL_WORKDIR to a private path."
+    )
 
 
 def release_workdir(workdir: Path = None) -> None:
