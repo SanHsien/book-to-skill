@@ -489,3 +489,25 @@ PDF 的 model-free NativePdfPipeline 回報 backend parse failure，尚未區分
 **觀察清單（上游原有，不改）**：
 - `parse_arguments` 與 `normalize_install_mode`：`--install-missing` 後面只要不是 `--` 開頭就被當成值吞掉，所以 `extract.py --install-missing book.pdf` 會把 `book.pdf` 當成模式（落回 `ask`），輸入檔消失而報「No input document」。`SKILL.md` 的標準呼叫把 `--install-missing ask` 放在最後，不受影響。觸發條件：上游修掉，或本 fork 的呼叫端改成把旗標放在檔名之前。
 - `--mode` 後面接檔名同理（值被吞、模式落回 `text`）。
+
+## 2026-10-27：上游增量審查（PR #302–#304、issue #305，commit 軸無新增）
+
+`upstream/master` 仍在 `a24e62f`，commit 水位不動。新增的 3 個 PR 與 1 個 issue 都用 `--state all` 列出並逐筆取目前 head 的 diff（#302 `91fc86323`、#303 `38b6c2e16`、#304 `4404e3b9d`，皆 open），掃空白夾內容、`eval`／`exec`／`__import__`／`b64decode`／`subprocess`、120 字元以上的 base64、零寬與雙向控制字元、變體選擇符與 tag 區字元，全部 0 命中。
+
+**採用（未合併，最小重做）**
+
+- [#302](https://github.com/virgiliojr94/book-to-skill/pull/302)（作者 Mattiapastr）`tools/validate_skill.py` 的 `get_scalar` 把 `description: |`／`description: >` 只讀成指示符那一個字元，所以區塊描述的 1024 字元上限永遠不會觸發。本 fork 先重現：把新測試放到未修的 `validate_skill.py` 上跑，11 筆中 7 筆紅（`over_cap` 的 5 個指示符、`value_is_read_from_the_indented_lines`、`empty_block_scalar_description_is_missing`），修後 11 筆全綠。
+  - 照上游的做法：辨識 `|`／`>` 加 chomping／縮排指示符，改讀後面縮排的行；摺疊（`>`）用空白連接、空行成為換行。
+  - **沒照抄的部分**：上游 `validate_skill.py` 多出 opencode／hermes／openclaw 的 lens，本 fork 沒有，所以上游測試檔裡建立在那些 lens 上的案例不搬，只搬 `_block_skill` 輔助函式與四個區塊純量測試，接在本 fork 既有測試之後。
+  - **一個順帶的行為差異**：正規式由 `^key:\s*(.*)$` 改為 `^key:[ \t]*(.*)$`。原本 `\s*` 會吃掉換行，空值的 `key:` 會讀到下一行的內容；改後空值回空字串。唯一的另一個呼叫端是 `allowed-tools` 在清單形式沒有項目時的單行後備，空值現在不再把下一個鍵誤當成工具清單。
+  - 實作由前一個子代理留在工作樹（未提交），本輪逐行與上游 diff 比對、重現紅燈後接續提交。上游測試的 `pytest` 匯入補上。
+
+**不採用**
+
+| 項目 | 判斷 | 本 fork 的證據與觸發條件 |
+| --- | --- | --- |
+| [#304](https://github.com/virgiliojr94/book-to-skill/pull/304)（dexhunter，`sanitize.py` 去重 Unicode 檢查，宣稱抽取時間減半） | 不採用 | 本 fork 的 `book_to_skill/sanitize.py` 是 171 行，與 PR 的基底結構不同：PR 把 `_ANNOTATION_CODEPOINTS` 與「已棄用格式字元範圍」併進 `_INVISIBLE_CODEPOINTS` 後只查一個集合；本 fork 的 `is_invisible_codepoint` 仍分開檢查 `_ANNOTATION_CODEPOINTS`（`sanitize.py:151`），沒有 `_DEPRECATED_FORMAT_RANGE`。照抄 diff 會漏掉 U+FFF9–U+FFFB 的行間註解控制字元，那正是這個模組要擋的「人看不見、模型讀得到」。實測本 fork 現況：300 萬個 CJK 字元 2.0 秒、400 萬個 ASCII 字元 4.0 秒（PR 的 `text.isascii()` 提早返回會讓純 ASCII 近乎免費，但本輪沒有實測 PR 版本）。這是效能而非缺陷，且動到安全過濾器與 SkillSpector 指紋。重訪：PR 合併，或實際抽取的剖析顯示 `sanitize_extracted_text` 佔整體時間的明顯比例；那時只移植「`isascii()` 提早返回」與「逐不同字元替換」的設計，並用本 fork 的集合重寫，不抄 diff |
+| [#303](https://github.com/virgiliojr94/book-to-skill/pull/303)（dependabot，上游 `ci.yml`／`codeql.yml`／`deploy-docs.yml` 的 `setup-python` 與 `codeql-action` 升版） | 不採用 | 本 fork 有自己的 workflow 與 Dependabot（每週一、`github-actions` 群組），`setup-python` 目前釘 `5fda3b9…`（v7.0.0）、`codeql-action` 釘 `db488dd…`（v4.37.8），會由本 fork 的 Dependabot 自行升版；沿用 #198／#213／#226 的判斷 |
+| issue [#305](https://github.com/virgiliojr94/book-to-skill/issues/305)（要求支援遠端 docling-serve） | 不採用 | 功能提案，不是缺陷。`AGENTS.md` 的硬性邊界寫明「不新增 hosted backend、不上傳使用者文件」；遠端抽取會把書籍內容送往另一個服務。重訪：無，除非維護者改變這條邊界 |
+
+**驗證**：`tools/dev_check.ps1` 全綠，見提交說明。

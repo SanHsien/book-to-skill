@@ -435,3 +435,14 @@ pattern 在本 fork 的主要平台上等於全部失效（舊的 `\s*$` 是靠 
 | [#293](https://github.com/virgiliojr94/book-to-skill/pull/293) | 等合併 | 希伯來文 `פרק` 章節偵測。未合併且屬新功能，不是本 fork 能證明的缺陷。重訪：上游合併後比照旁遮普／僧伽羅最小重做。 |
 
 同批自我掃描在 `pyproject.toml` 報 SC4：`pypdf==6.20.0` 自上次審查後累積 6 筆 OSV advisory，最後一筆於 6.21.1 修復，因此升到 6.21.2（`pyproject.toml` 兩處與 `tests/test_repo_hygiene.py` 的釘選斷言同步）。`.skillspector-baseline.yaml` 只換 `tests/test_book_to_skill.py` 的 AE4 雜湊，沒有新增抑制項。
+
+## 2026-10-27：PR #302–#304、issue #305
+
+commit 水位仍是 `a24e62f4d8caf2ee433f6e48d9073800f56f906e`（上游 master 無新 commit）；PR 水位推到 304、issue 水位推到 305。
+
+| 項目 | 判斷 | 本 fork 的證據與範圍 |
+| --- | --- | --- |
+| [#302](https://github.com/virgiliojr94/book-to-skill/pull/302) | 採用未合併（最小重做） | `description: \|`／`>` 只被讀成一個字元，1024 字元上限不會觸發。新測試放到未修的檔案上 11 筆中 7 筆紅。沒搬上游 opencode／hermes／openclaw lens 相關的測試。 |
+| [#304](https://github.com/virgiliojr94/book-to-skill/pull/304) | 不採用 | 效能而非缺陷；本 fork 的 `sanitize.py` 分開檢查 `_ANNOTATION_CODEPOINTS`，照抄會漏掉 U+FFF9–U+FFFB。實測 300 萬 CJK 字元 2.0 秒。重訪：PR 合併，或剖析顯示 sanitize 佔明顯比例。 |
+| [#303](https://github.com/virgiliojr94/book-to-skill/pull/303) | 不採用 | 上游自家 workflow 的 Dependabot 升版；本 fork 的 workflow 與 Dependabot 自持。 |
+| issue [#305](https://github.com/virgiliojr94/book-to-skill/issues/305) | 不採用 | 要求遠端 docling-serve，與「不上傳使用者文件」的硬性邊界衝突。 |
