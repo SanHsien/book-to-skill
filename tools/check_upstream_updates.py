@@ -84,7 +84,7 @@ def load_baseline(path: Path = BASELINE_PATH) -> dict:
         value = baseline.get(key, 0)
         # A watermark that is not a plain number must be a clean baseline error, not a ValueError
         # from deep inside a run (and `true` is not 1).
-        if isinstance(value, bool) or not isinstance(value, int | str):
+        if isinstance(value, bool) or not isinstance(value, (int, str)):
             raise UpstreamCheckError(f"{key} must be an integer, not {value!r}")
         try:
             if int(value) < 0:
