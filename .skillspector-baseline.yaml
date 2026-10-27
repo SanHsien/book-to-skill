@@ -127,14 +127,6 @@ fingerprints:
   rule_id: AST4
   file: tests/test_stage_scan_input.py
   reason: 自我指涉：測試 helper 以 shell false 的 argv 陣列呼叫 git，只在 pytest tmp_path 建立的拋棄式 repo 內執行 init／config／add／commit，參數皆為測試常數。
-- hash: sha256:edf0228b7e6b90ef5c0ac8069c5c75b5d74c3165ce5e1ec1b26128713a6aef4d
-  rule_id: AST4
-  file: tools/check_upstream_updates.py
-  reason: 合理功能：本工具的核心功能就是呼叫外部轉檔程式（pdftotext、ebook-convert）進行文件解析，以及內部維運腳本呼叫 git／gh 檢查上游狀態；參數皆為固定字面值或程式內驗證過的路徑，不會拼接任意使用者輸入。
-- hash: sha256:269abf18d289b736f9d343242650299e9ec6ea359cc2a8cd62c30a32c11eea09
-  rule_id: AST4
-  file: tools/check_upstream_updates.py
-  reason: 合理功能：本工具的核心功能就是呼叫外部轉檔程式（pdftotext、ebook-convert）進行文件解析，以及內部維運腳本呼叫 git／gh 檢查上游狀態；參數皆為固定字面值或程式內驗證過的路徑，不會拼接任意使用者輸入。
 - hash: sha256:a3b97f0c6e5e68507179888ac2f642ea0175026ee4ec14e83849022e08e9d81c
   rule_id: TT2
   file: tools/check_dependency_freshness.py
@@ -247,3 +239,8 @@ fingerprints:
   rule_id: RP1
   file: docs/DECISIONS.md
   reason: "2026-10-24 隨 SkillSpector 2.12.0 審閱：決策紀錄在說明發布說明裡的 `npx skills` 已固定為 skills@1.5.23，本身就是鎖版的紀錄，不是要執行的未鎖版指令。"
+
+- hash: sha256:6e4cee8387f7c500ad5589f39563016c35875b3e9ccbfc87599873453e1597a1
+  rule_id: AST4
+  file: tools/check_upstream_updates.py
+  reason: 合理功能：艦隊共用的上游檢查正本（SanHsien/repo-fleet-ops tools/canonical）以 shell false 的 argv 串列呼叫 git／gh，指令名稱為程式內常數、含逾時；不拼接使用者輸入，也不使用 shell。
