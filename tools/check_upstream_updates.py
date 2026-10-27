@@ -78,8 +78,21 @@ def load_baseline(path: Path = BASELINE_PATH) -> dict:
     missing = sorted(required - baseline.keys())
     if missing:
         raise UpstreamCheckError(f"baseline missing fields: {', '.join(missing)}")
-    if len(str(baseline["reviewed_through"])) != 40:
-        raise UpstreamCheckError("reviewed_through must be a full 40-character SHA")
+    if not re.fullmatch(r"[0-9a-fA-F]{40}", str(baseline["reviewed_through"])):
+        raise UpstreamCheckError("reviewed_through must be a full 40-character hex SHA")
+    for key in ("reviewed_pr_through", "reviewed_issue_through"):
+        value = baseline.get(key, 0)
+        # A watermark that is not a plain number must be a clean baseline error, not a ValueError
+        # from deep inside a run (and `true` is not 1).
+        if isinstance(value, bool) or not isinstance(value, int | str):
+            raise UpstreamCheckError(f"{key} must be an integer, not {value!r}")
+        try:
+            if int(value) < 0:
+                raise ValueError
+        except ValueError:
+            raise UpstreamCheckError(
+                f"{key} must be a non-negative integer, not {value!r}"
+            ) from None
     track = baseline.get("track", "commit")
     if track not in TRACK_MODES:
         raise UpstreamCheckError(f"track must be one of {', '.join(TRACK_MODES)}, not {track!r}")
@@ -182,13 +195,19 @@ def latest_upstream_release(baseline: dict, repo_dir: Path) -> tuple[str, str] |
 def fetch_upstream(baseline: dict, repo_dir: Path) -> str:
     branch = baseline["branch"]
     ref = f"{UPSTREAM_REF_PREFIX}/{branch}"
-    run_git(["fetch", "--quiet", baseline["repo"], f"+refs/heads/{branch}:{ref}"], repo_dir)
+    run_git(
+        ["fetch", "--quiet", "--no-tags", baseline["repo"], f"+refs/heads/{branch}:{ref}"],
+        repo_dir,
+    )
     return ref
 
 
 def fetch_upstream_release(baseline: dict, repo_dir: Path, tag: str) -> str:
     ref = f"{UPSTREAM_REF_PREFIX}/tags/{tag}"
-    run_git(["fetch", "--quiet", baseline["repo"], f"+refs/tags/{tag}:{ref}"], repo_dir)
+    run_git(
+        ["fetch", "--quiet", "--no-tags", baseline["repo"], f"+refs/tags/{tag}:{ref}"],
+        repo_dir,
+    )
     return ref
 
 
@@ -272,7 +291,10 @@ def collect_new_commits(baseline: dict, repo_dir: Path, ref: str) -> list[dict]:
     for line in raw.split("\n"):
         if not line.strip():
             continue
-        sha, date, subject = line.split("\x1f", 2)
+        parts = line.split("\x1f", 2)
+        if len(parts) != 3:
+            raise UpstreamCheckError(f"unexpected `git log` line: {line[:80]!r}")
+        sha, date, subject = parts
         files = [
             item
             for item in run_git(["show", "--name-only", "--format=", sha], repo_dir).splitlines()
