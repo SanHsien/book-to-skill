@@ -240,7 +240,7 @@ fingerprints:
   file: docs/DECISIONS.md
   reason: "2026-10-24 隨 SkillSpector 2.12.0 審閱：決策紀錄在說明發布說明裡的 `npx skills` 已固定為 skills@1.5.23，本身就是鎖版的紀錄，不是要執行的未鎖版指令。"
 
-- hash: sha256:5f4db4fe0a2f24b0d7430da570e6179b2f28684312e8b5bdae77bda5a8b29842
+- hash: sha256:304582187f73c1b8ea6512876d9b2535fdd47293720eb77fcd73b9d55d9ba3fd
   rule_id: AST4
   file: tools/check_upstream_updates.py
   reason: 合理功能：艦隊共用的上游檢查正本（SanHsien/repo-fleet-ops tools/canonical）以 shell false 的 argv 串列呼叫 git／gh，指令名稱為程式內常數、含逾時；不拼接使用者輸入，也不使用 shell。

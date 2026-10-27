@@ -11,8 +11,12 @@ Axes (each fails closed: "could not check" is never reported as "nothing new"):
 
 * commits -- everything past ``reviewed_through``; ``track`` picks the granularity:
   ``commit`` (default) reads the upstream branch, ``release`` reads only the newest semver tag.
+  ``release_tag_prefix`` (default "") names tags such as ``rea-agents-6.8.0``.
 * pull requests / issues -- everything numbered above ``reviewed_pr_through`` /
-  ``reviewed_issue_through``, closed ones included.
+  ``reviewed_issue_through``, closed ones included. With ``"ticket_cutoff": "release"`` (release
+  track only) items opened after the newest release commit are deferred to the next release, so a
+  busy upstream does not turn the weekly check red every day; they are not lost, the watermark
+  still sits below them.
 * branches (optional) -- ``branches`` lists registered names, ``reviewed_branch_heads`` maps a
   name to the head it was read at; anything else is reported.
 * monitored (optional) -- ``monitored`` pins conditional verdicts ("revisit when X") to the head
@@ -37,6 +41,7 @@ import subprocess
 import sys
 import urllib.request
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import TextIO
 
@@ -46,8 +51,12 @@ BASELINE_PATH = SCRIPT_DIR / "upstream_baseline.json"
 UPSTREAM_REF_PREFIX = "refs/upstream-check"
 DEFAULT_DECISION_LOG = "docs/DECISIONS.md"
 TRACK_MODES = ("release", "commit")
+
+
 # `v1.7` is a release as much as `v1.7.0` (jev-chat-jarvis upstream); a missing patch reads as 0.
-_SEMVER_TAG_RE = re.compile(r"^v?(\d+)\.(\d+)(?:\.(\d+))?$")
+def _tag_re(prefix: str = "") -> re.Pattern[str]:
+    return re.compile("^" + re.escape(prefix) + r"v?(\d+)\.(\d+)(?:\.(\d+))?$")
+
 
 # `gh pr|issue list` has no offset, only `--limit`. Start small and grow the limit until the
 # listing reaches the reviewed watermark, so a fast-moving upstream is never silently truncated.
@@ -96,6 +105,9 @@ def load_baseline(path: Path = BASELINE_PATH) -> dict:
     track = baseline.get("track", "commit")
     if track not in TRACK_MODES:
         raise UpstreamCheckError(f"track must be one of {', '.join(TRACK_MODES)}, not {track!r}")
+    cutoff = baseline.get("ticket_cutoff")
+    if cutoff is not None and (cutoff != "release" or track != "release"):
+        raise UpstreamCheckError('ticket_cutoff must be "release" and needs track "release"')
     branches = baseline.get("branches")
     if branches is not None and not (
         isinstance(branches, list) and all(isinstance(name, str) for name in branches)
@@ -122,8 +134,9 @@ def branch_axis_enabled(baseline: dict) -> bool:
     return "reviewed_branch_heads" in baseline or baseline.get("check_branches") is True
 
 
-def parse_tag_refs(raw: str) -> list[tuple[tuple[int, int, int], str, str]]:
+def parse_tag_refs(raw: str, prefix: str = "") -> list[tuple[tuple[int, int, int], str, str]]:
     """Parse ``git ls-remote --tags`` output into sorted (version, tag, sha)."""
+    tag_re = _tag_re(prefix)
     commits: dict[str, str] = {}
     for line in raw.splitlines():
         if "\t" not in line:
@@ -132,14 +145,14 @@ def parse_tag_refs(raw: str) -> list[tuple[tuple[int, int, int], str, str]]:
         name = ref.strip().removeprefix("refs/tags/")
         peeled = name.endswith("^{}")
         name = name.removesuffix("^{}")
-        if not _SEMVER_TAG_RE.match(name):
+        if not tag_re.match(name):
             continue
         if peeled or name not in commits:
             commits[name] = sha.strip()
 
     parsed = []
     for name, sha in commits.items():
-        match = _SEMVER_TAG_RE.match(name)
+        match = tag_re.match(name)
         if match is None:
             continue
         parts = tuple(int(part or 0) for part in match.groups())
@@ -185,7 +198,8 @@ def run_gh(args: list[str]) -> subprocess.CompletedProcess | None:
 
 def latest_upstream_release(baseline: dict, repo_dir: Path) -> tuple[str, str] | None:
     """Return the highest semver tag upstream publishes, as (tag, commit sha)."""
-    tags = parse_tag_refs(run_git(["ls-remote", "--tags", baseline["repo"]], repo_dir))
+    raw = run_git(["ls-remote", "--tags", baseline["repo"]], repo_dir)
+    tags = parse_tag_refs(raw, str(baseline.get("release_tag_prefix", "")))
     if not tags:
         return None
     _, name, sha = tags[-1]
@@ -338,13 +352,16 @@ class TicketScan:
     complete: bool
     limit: int
     disabled: bool = False
+    deferred: int = 0
+    cutoff: str | None = None
+    lowest_deferred: int | None = None
 
 
 def _list_tickets(slug: str, kind: str, limit: int) -> list[dict] | str | None:
     """The newest ``limit`` items; ``None`` when it could not be listed; ``"disabled"``."""
     result = run_gh(
         [kind, "list", "--repo", slug, "--state", "all", "--limit", str(limit)]
-        + ["--json", "number,title"]
+        + ["--json", "number,title,createdAt"]
     )
     if result is None:
         return None
@@ -364,8 +381,49 @@ def _list_tickets(slug: str, kind: str, limit: int) -> list[dict] | str | None:
     return items
 
 
+def _instant(text: object) -> datetime | None:
+    """An ISO-8601 timestamp (``Z`` or an offset) as an aware datetime; ``None`` if unreadable."""
+    try:
+        value = datetime.fromisoformat(str(text).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return value if value.tzinfo else value.replace(tzinfo=timezone.utc)  # noqa: UP017 -- the UTC alias needs 3.11
+
+
+def defer_after(scan: TicketScan, cutoff: str | None) -> TicketScan | None:
+    """Drop items opened after ``cutoff`` (they belong to the next release).
+
+    ``None`` when ``cutoff`` or an item's ``createdAt`` cannot be read: deferring on a guess is
+    exactly how an item would be hidden, so that is "could not check", not "deferred".
+    """
+    if cutoff is None:
+        return scan
+    limit = _instant(cutoff)
+    if limit is None:
+        return None
+    kept = []
+    held = []
+    for item in scan.items:
+        opened = _instant(item.get("createdAt"))
+        if opened is None:
+            return None
+        if opened <= limit:
+            kept.append(item)
+        else:
+            held.append(item["number"])
+    scan.lowest_deferred = min(held) if held else None
+    scan.deferred = len(held)
+    scan.items = kept
+    scan.cutoff = cutoff
+    return scan
+
+
 def collect_new_tickets(
-    baseline: dict, kind: str, repo_dir: Path | None = None, cap: int = TICKET_LIMIT_CAP
+    baseline: dict,
+    kind: str,
+    repo_dir: Path | None = None,
+    cap: int = TICKET_LIMIT_CAP,
+    cutoff: str | None = None,
 ) -> TicketScan | None:
     """List upstream items numbered above the watermark; ``None`` means "could not check"."""
     slug = upstream_slug(str(baseline["repo"]), repo_dir)
@@ -387,9 +445,9 @@ def collect_new_tickets(
         # `gh` lists newest first. The listing is complete once it ran out of items (fewer than
         # asked for) or already contains something at or below the watermark.
         if len(items) < limit or any(item["number"] <= watermark for item in items):
-            return TicketScan(new, True, limit)
+            return defer_after(TicketScan(new, True, limit), cutoff)
         if limit >= cap:
-            return TicketScan(new, False, limit)
+            return defer_after(TicketScan(new, False, limit), cutoff)
         limit = min(limit * 2, cap)
 
 
@@ -529,11 +587,22 @@ def render_ticket_section(
         )
         return lines
     tickets = scan.items
+    note = (
+        [
+            f"{scan.deferred} item(s) opened after the newest release ({scan.cutoff}) are deferred",
+            "to the next release and not listed here. Do NOT raise "
+            f"`reviewed_{kind}_through` above `#{(scan.lowest_deferred or 1) - 1}`:",
+            "a higher watermark would hide the deferred items for good.",
+            "",
+        ]
+        if scan.deferred
+        else []
+    )
     if not tickets and scan.complete:
-        lines.extend(["No new items above that number.", ""])
+        lines.extend(["No new items above that number.", "", *note])
         return lines
     if scan.complete:
-        lines.extend([f"{len(tickets)} new item(s) to triage.", ""])
+        lines.extend([f"{len(tickets)} new item(s) to triage.", "", *note])
     else:
         lines.extend(
             [
@@ -757,19 +826,24 @@ def gather(args: argparse.Namespace) -> Findings:
                 f"reachable from upstream {baseline['branch']}. Re-anchor reviewed_through on the "
                 "upstream commit with the same tree before reviewing anything."
             )
+        cutoff: str | None = None
         if baseline.get("track", "commit") == "release":
             newest = latest_upstream_release(baseline, repo_dir)
             if newest is None:
                 raise UpstreamCheckError("upstream publishes no semver tags to track")
             tag, sha = newest
+            release_ref = baseline["reviewed_through"]
             if sha != baseline["reviewed_through"]:
                 findings.release = tag
-                ref = fetch_upstream_release(baseline, repo_dir, tag)
-                findings.commits = collect_new_commits(baseline, repo_dir, ref)
+                release_ref = fetch_upstream_release(baseline, repo_dir, tag)
+                findings.commits = collect_new_commits(baseline, repo_dir, release_ref)
+            if baseline.get("ticket_cutoff") == "release":
+                # The newest release commit's date: later tickets wait for the next release.
+                cutoff = run_git(["log", "-1", "--format=%cI", release_ref], repo_dir).strip()
         else:
             findings.commits = collect_new_commits(baseline, repo_dir, branch_ref)
-        findings.prs = collect_new_tickets(baseline, "pr", repo_dir, args.ticket_cap)
-        findings.issues = collect_new_tickets(baseline, "issue", repo_dir, args.ticket_cap)
+        findings.prs = collect_new_tickets(baseline, "pr", repo_dir, args.ticket_cap, cutoff)
+        findings.issues = collect_new_tickets(baseline, "issue", repo_dir, args.ticket_cap, cutoff)
         if branch_axis_enabled(baseline):
             findings.branches = collect_branch_changes(baseline, repo_dir)
         if "monitored" in baseline:
