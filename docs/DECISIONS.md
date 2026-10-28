@@ -511,3 +511,39 @@ PDF 的 model-free NativePdfPipeline 回報 backend parse failure，尚未區分
 | issue [#305](https://github.com/virgiliojr94/book-to-skill/issues/305)（要求支援遠端 docling-serve） | 不採用 | 功能提案，不是缺陷。`AGENTS.md` 的硬性邊界寫明「不新增 hosted backend、不上傳使用者文件」；遠端抽取會把書籍內容送往另一個服務。重訪：無，除非維護者改變這條邊界 |
 
 **驗證**：`tools/dev_check.ps1` 全綠，見提交說明。
+
+## 2026-10-28：上游增量審查到 `fece258`（PR #308、issue #309）
+
+`upstream/master` 由 `a24e62f` 前進 8 個 commit（都是 2026-10-27 合併）；PR 304 → 308、issue 305 → 309。PR／issue 都用 `--state all` 列出。#307 目前 head `1ba32343`（10 個 commit）、#308 目前 head `12e3c245`（1 個 commit），逐檔讀 diff 並掃描：行內 40 個以上空白夾內容、`eval`／`exec`／`__import__`／`globalThis`／`pickle`、120 字元以上的 base64／hex、零寬／雙向／變體選擇符／tag 區字元，全部 0 命中；#307 的二進位 fixture（2047 bytes）沒有 `/JavaScript`、`/OpenAction`、`/Launch`、`/EmbeddedFile`。8 個已合併 commit 的合併差異（832 行）同樣 0 命中。
+
+**採用（本次實作）**
+
+- `6236146`（[#293](https://github.com/virgiliojr94/book-to-skill/pull/293)，作者 Shubham Srivastava）希伯來文 `פרק N` 章節偵測。上次記為「等上游合併」，現已合併，觸發條件成立。本 fork 先重現：上游 4 個測試放進 `tests/test_book_to_skill.py`，`test_detects_hebrew_chapters` 與 `test_hebrew_heading_survives_bidi_controls` 兩筆紅（`detect_structure` 回 0 章），另兩筆（Markdown 前綴、散文不誤判）原本就綠。照 Tamil／Telugu／Punjabi／Sinhala 的寫法加 `_HE_CHAPTER` 與 `_match_chapter_number` 的一個分支，`utils.py` 與上游不同所以是最小重做；格式要求空白加阿拉伯數字，希伯來字母記數（gematria，`פרק א`）刻意不處理。修後 52 筆章節相關測試全綠。
+- `d2d4c53`（[#304](https://github.com/virgiliojr94/book-to-skill/pull/304)，作者 Dex Hünter）`sanitize_extracted_text` 的效能設計。2026-10-27 的重訪條件「PR 合併」成立，且當時已訂好範圍：只移植 `isascii()` 提早返回與逐不同字元替換，用本 fork 的集合，不抄 diff。
+  - **沒照抄的部分**：上游同一個 commit 改了 `is_invisible_codepoint`，把註解控制字元併進 `_INVISIBLE_CODEPOINTS`、並依賴 `_DEPRECATED_FORMAT_RANGE`；本 fork 的 `is_invisible_codepoint` 仍分開檢查 `_ANNOTATION_CODEPOINTS`（U+FFF9–U+FFFB），且該函式與產生技能掃描器（`tools/scan_generated_skill.py:30`）共用，所以完全不動。只改 `sanitize_extracted_text`，判斷「要不要剝」仍由同一個函式決定。
+  - **實測**：舊的逐字元迴圈對 300 萬個 CJK 字元 2.07 秒，新版 0.15 秒；400 萬個純 ASCII 字元 2.38 秒 → 0.00 秒。
+  - **行為等價**由新測試 `tests/test_sanitize_distinct_character_equivalence.py` 釘住：以原本的逐字元演算法為參考，對 U+0000–U+10FFFF 全部碼位（含孤立 surrogate）一次比對輸出與移除計數；再對政策相關區段逐碼位、200 組隨機混合重複字串比對；另測純 ASCII 原樣返回、康熙部首折疊不計入移除數。康熙部首表 224 項全為單字元且折疊結果沒有不可見字元，所以「長度差等於移除數」成立。
+
+**已採用，本次只核對（不再動）**
+
+- `fd332f4`（[#296](https://github.com/virgiliojr94/book-to-skill/pull/296)）RTF surrogate pair：本 fork 的 `book_to_skill/parsers/rtf.py` 與上游 master 逐位元組相同（忽略 CRLF），`tests/test_rtf_surrogate_pairs.py` 亦相同。
+- `2296b08`（[#302](https://github.com/virgiliojr94/book-to-skill/pull/302)）validate_skill 區塊純量描述：`tools/validate_skill.py` 的 `get_scalar`（`_BLOCK_SCALAR` 與讀縮排行）與合併版逐行相同；上游測試檔只缺 hermes／openclaw／opencode lens 的 15 筆，本 fork 沒有那些 lens。
+- `d26a4f2`（[#270](https://github.com/virgiliojr94/book-to-skill/pull/270)）DOCX 內容控制項（SDT）段落：缺陷在本 fork 不存在。`book_to_skill/parsers/docx.py:21-31,49-52` 在 `extract_docx_with_python_docx` 偵測到有文字的 `sdtContent` 就回 `None`，一律交給 zip parser，後者依文件順序輸出 SDT 內的段落與表格；偵測用 `defusedxml`。這比上游「兩個 parser 都跑、以 SDT 覆蓋率挑一個」更直接，且上游新增的第二條 XML 路徑用的是標準庫 `xml.etree.ElementTree.fromstring`，不是 defusedxml。`tests/test_preferred_parser_adoption.py:54,65,100` 用真實 docx 釘住覆蓋、順序、重複與子字串、行內 SDT。**沒搬上游測試**：它們 mock `extract_docx_with_python_docx` 讓它回傳殘缺輸出再斷言 `zipfile-docx` 勝出，本 fork 的設計是在 python-docx 函式內部就放棄，mock 掉它等於繞過這個設計。重訪：本 fork 的 `extract_docx` 改成同時跑兩個 parser 時。
+
+**不適用（本 fork 沒有該子系統）**
+
+- `ceeb270`（[#301](https://github.com/virgiliojr94/book-to-skill/pull/301)，pdf-inspector 備援欄位）：`book_to_skill/pdf_inspector_integration.py` 在本 fork 不存在；沿用 2026-10-24 的判斷。
+- `65b2f64`（[#298](https://github.com/virgiliojr94/book-to-skill/pull/298)，文件的 lens 清單）：上游的不一致是 hermes／openclaw／opencode 三個 lens 的合併殘留。本 fork 的 `LENSES`（`tools/validate_skill.py:56`）只有 claude／copilot／amp，docstring（第 7–10 行與 Usage）、`README.en.md:224`、`docs/architecture.md:77` 都寫 `claude|copilot|amp`，沒有這個缺陷。已於 2026-10-24 判過，這次合併不改變結論。
+
+**不採用**
+
+| 項目 | 判斷 | 本 fork 的證據與觸發條件 |
+| --- | --- | --- |
+| `fece258`（[#303](https://github.com/virgiliojr94/book-to-skill/pull/303)，dependabot：`setup-python` 7.0.0 → 7.1.0、`codeql-action` 4.38.3 → 4.39.1） | 不採用 | 只動上游自己的 `ci.yml`／`codeql.yml`／`deploy-docs.yml`。本 fork 的 workflow 自持，釘在 `setup-python@5fda3b9…`（`.github/workflows/ci.yml:24` 等）與 `codeql-action@db488dd…`（`codeql.yml:25,32`），由本 fork 自己的 Dependabot 升版；沿用 #198／#213／#226 的判斷。理由是上游 CI 的版本，不是本 fork 的缺陷 |
+| [#307](https://github.com/virgiliojr94/book-to-skill/pull/307)（Stamina9，head `1ba32343`，+349／−3，8 檔）與 issue [#306](https://github.com/virgiliojr94/book-to-skill/issues/306) | 不採用，等合併 | 新功能 `--pdf-page-sidecar`，寫出 `pdf_pages.json`（來源 SHA-256、頁碼、頁面文字），不是缺陷：issue 自述預設的 `full_text.txt` 與 metadata 契約不變，且重現的 `0.2070.110` 在 pypdf 的 `extract_text()` 就已存在，不是本 fork 的清理造成。本 fork 沒有任何 `pdf_pages`／`--pdf-page-sidecar`（grep 0 筆），`parsers/pdf.py` 也沒有逐頁輸出。新增一個公開 CLI 旗標與一個新的輸出檔格式屬於產品面決定，PR 仍在更新（最後更新 2026-10-28）。重訪：PR 合併，或有使用者需要從輸出回溯 PDF 頁碼；那時走最小重做，並改為只從既有 pypdf 路徑取頁面文字，檢查 CI 變更（該 PR 的 `ci.yml` 另外把 pypdf 加進選配依賴 job，且註解縮排錯位）不搬 |
+| [#308](https://github.com/virgiliojr94/book-to-skill/pull/308)（bhantos，head `12e3c245`，+241，2 檔）：`parsers/docling_remote.py` | 不採用 | 這是 issue [#305](https://github.com/virgiliojr94/book-to-skill/issues/305) 的第一塊：把整份 PDF base64 上傳到 docling-serve。與 `AGENTS.md`「不新增 hosted backend、不上傳使用者文件」衝突，2026-10-27 已用同一理由不採用 #305。理由的主詞是需要共用 Docling 服務的團隊，不是本 fork 的單機使用者。重訪：無，除非維護者改變這條邊界 |
+| issue [#309](https://github.com/virgiliojr94/book-to-skill/issues/309)（blazardsky，精簡安裝內容） | 不採用 | 打包提案，不是缺陷，且上游維護者尚未回應（0 則留言）。本 fork 的安裝方式是整個 repo clone 到技能目錄（`README.md:128-131`），`tests/`、`tools/validate_skill.py` 與 `tools/dev_check.ps1` 是本 fork 驗收鏈的一部分，不能從預設分支移走。重訪：上游採用 runtime 分支或精簡發佈物，且 skills CLI 的安裝指令能指向它時，再評估本 fork 是否發佈對應的 runtime tag |
+
+**水位**：commit 推到 `fece258`、PR 到 308、issue 到 309。#307、#308、#309、#306 都屬已審並記下結論，不是延後；重訪條件寫在各列。
+
+**驗證**：見提交說明。

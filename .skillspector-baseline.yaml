@@ -79,10 +79,10 @@ rules:
   message: '*subprocess*'
   reason: 已人工審查：測試 helper 以 shell false 的固定 argv 陣列呼叫 git，輸入為測試常數且有 30 秒 timeout，不拼接 shell。
 fingerprints:
-- hash: sha256:078a2e8efce0df7419337a2917d2f57f204bf6dfda8a10af282e8373ed80b167
+- hash: sha256:298454112d9b8c10fb9c47d325fcef76bd0b43c8d03963856e00c7a222866c70
   rule_id: AE4
   file: tests/test_book_to_skill.py
-  reason: 已人工審查：測試刻意含 Unicode 正規化與控制字元樣本以驗證 sanitizer，另含古木基、僧伽羅、天城體等多種文字的章節標題樣本以驗證各語系偵測，不含偽裝指令或機密。2026-10-24 新增旁遮普文與僧伽羅文案例後換雜湊。
+  reason: 已人工審查：測試刻意含 Unicode 正規化與控制字元樣本以驗證 sanitizer，另含古木基、僧伽羅、天城體等多種文字的章節標題樣本以驗證各語系偵測，不含偽裝指令或機密。2026-10-24 新增旁遮普文與僧伽羅文案例後換雜湊；2026-10-28 新增希伯來文章節標題案例（含 RLE／PDF 雙向控制字元以 chr() 組出，驗證清理後仍能偵測）後再換雜湊。
 - hash: sha256:e92667c2c4e30900d56935bb99b5add448e2a3f42df4342c9ecddd371a4f65ed
   rule_id: AST4
   file: book_to_skill/dependencies.py
@@ -223,19 +223,19 @@ fingerprints:
   rule_id: RA2
   file: SKILL.md
   reason: "2026-10-24 隨 SkillSpector 2.12.0 審閱：安裝路徑說明（把 SKILLS_HOME 設為 ~/.agents/skills），是技能落地位置的規格，不是跨 session 持久化指令。"
-- hash: sha256:7f7d5a9e50055d8c6930feb02f7d667f59dff29a2863a7430a4d09fecca3a796
+- hash: sha256:6d884cf1489a88874ff16e81593636858db79b91b27b999e8609964d97508ff9
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：文件明確禁止推送 upstream，並要求只推 SanHsien origin；這是安全邊界說明，不是參數濫用指令。雜湊綁檔案內容，每次追加決策條目都會換。
-- hash: sha256:a44bd5b5f4c81a81bd443e06ef3c415eee6dea3216966837d27533cc52638e37
+- hash: sha256:b453ebfa77932454b0f45bf6d1b32477fb88b46b46caf083104e10256abe487c
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：同一段禁止推送 upstream 的 normalized view；沒有執行路徑，且保留此文字能防止誤推母 repo。雜湊綁檔案內容，每次追加決策條目都會換。
-- hash: sha256:575a514ddc627cb3be2cf15b6f0b69867b6127fe6746be895c46fa4ef6f4b04c
+- hash: sha256:d48dd1201fe83f65471497ba77742b92b4585059d704347b5070c7b1a1c33add
   rule_id: RP1
   file: docs/DECISIONS.md
   reason: "2026-10-24 隨 SkillSpector 2.12.0 審閱：決策紀錄在說明發布說明裡的 `npx skills` 已固定為 skills@1.5.23，本身就是鎖版的紀錄，不是要執行的未鎖版指令。"
-- hash: sha256:8a8c288196397ee23c5d2f697a7107c20a1e6036b9bf983f752bf795ba86d7cb
+- hash: sha256:c7e10877624c5c1ed49d434b61550763b05890de1c598d4d44527f089a6973e5
   rule_id: RP1
   file: docs/DECISIONS.md
   reason: "2026-10-24 隨 SkillSpector 2.12.0 審閱：決策紀錄在說明發布說明裡的 `npx skills` 已固定為 skills@1.5.23，本身就是鎖版的紀錄，不是要執行的未鎖版指令。"

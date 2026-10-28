@@ -689,6 +689,37 @@ class TestDetectStructure:
         assert _chapter_number("Το κεφάλαιο αυτό εξετάζει") is None
         assert _chapter_number("Κεφάλαιο") is None
 
+    def test_detects_hebrew_chapters(self):
+        """Hebrew headings: `פרק N`, with Arabic digits."""
+        text = (
+            "פרק 1 מבוא\nתקציר\n"
+            "פרק 2 שיטות\nתקציר\n"
+            "פרק 3 תוצאות\nתקציר"
+        )
+        assert detect_structure(text)["chapters_detected"] == 3
+
+    def test_hebrew_markdown_prefix(self):
+        text = "## פרק 1 ראשון\nתקציר\n## פרק 2 שני\nתקציר"
+        assert detect_structure(text)["chapters_detected"] == 2
+
+    def test_hebrew_prose_is_not_a_chapter_heading(self):
+        """Plural/prefixed forms and the bare word are not headings."""
+        from book_to_skill.utils import _chapter_number
+
+        assert _chapter_number("בפרק זה נדון בנושא") is None
+        assert _chapter_number("פרקים רבים בספר") is None
+        assert _chapter_number("פרק") is None
+
+    def test_hebrew_heading_survives_bidi_controls(self):
+        """Bidi wrappers are stripped before detection, so the heading still counts."""
+        from book_to_skill.sanitize import sanitize_extracted_text
+
+        rle, pdf = chr(0x202B), chr(0x202C)  # RLE ... PDF wrappers
+        text = f"{rle}פרק 1 מבוא{pdf}\nתקציר\n{rle}פרק 2 שיטות{pdf}\nתקציר"
+        sanitized, removed = sanitize_extracted_text(text)
+        assert removed == 4
+        assert detect_structure(sanitized)["chapters_detected"] == 2
+
     def test_detects_tamil_chapters_and_rejects_prose(self):
         """`அத்தியாயம் N` with Arabic or Tamil digits; inflected stems do not match."""
         from book_to_skill.utils import _chapter_number

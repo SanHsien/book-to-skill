@@ -159,13 +159,23 @@ def is_invisible_codepoint(codepoint: int) -> bool:
 
 def sanitize_extracted_text(text: str) -> tuple[str, int]:
     """Remove invisible code points used for document-borne prompt injection."""
-    kept: list[str] = []
-    removed = 0
+    # Pure ASCII has nothing to strip or fold (every invisible code point and
+    # every Kangxi radical is non-ASCII), so skip the scan entirely.
+    if text.isascii():
+        return text, 0
 
-    for character in fold_cjk_radicals(text):
-        if is_invisible_codepoint(ord(character)):
-            removed += 1
-            continue
-        kept.append(character)
+    # Classify each distinct character once and rewrite only the ones that need
+    # it, instead of testing every character of a book-length string. The policy
+    # is unchanged: is_invisible_codepoint() (shared with the generated-skill
+    # scanner) still decides what is stripped, and fold_cjk_radicals' table
+    # still decides what is folded.
+    cleaned = text
+    for codepoint in map(ord, set(text)):
+        if is_invisible_codepoint(codepoint):
+            cleaned = cleaned.replace(chr(codepoint), "")
+        elif codepoint in _KANGXI_RADICAL_FOLD:
+            cleaned = cleaned.replace(chr(codepoint), _KANGXI_RADICAL_FOLD[codepoint])
 
-    return "".join(kept), removed
+    # Each Kangxi radical folds to exactly one ideograph, so only deletions
+    # change the length; folds do not count toward the removal total.
+    return cleaned, len(text) - len(cleaned)

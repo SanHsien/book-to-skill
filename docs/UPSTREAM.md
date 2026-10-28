@@ -446,3 +446,19 @@ commit 水位仍是 `a24e62f4d8caf2ee433f6e48d9073800f56f906e`（上游 master �
 | [#304](https://github.com/virgiliojr94/book-to-skill/pull/304) | 不採用 | 效能而非缺陷；本 fork 的 `sanitize.py` 分開檢查 `_ANNOTATION_CODEPOINTS`，照抄會漏掉 U+FFF9–U+FFFB。實測 300 萬 CJK 字元 2.0 秒。重訪：PR 合併，或剖析顯示 sanitize 佔明顯比例。 |
 | [#303](https://github.com/virgiliojr94/book-to-skill/pull/303) | 不採用 | 上游自家 workflow 的 Dependabot 升版；本 fork 的 workflow 與 Dependabot 自持。 |
 | issue [#305](https://github.com/virgiliojr94/book-to-skill/issues/305) | 不採用 | 要求遠端 docling-serve，與「不上傳使用者文件」的硬性邊界衝突。 |
+
+## 2026-10-28：commit `a24e62f`→`fece258`、PR #307–#308、issue #306、#309
+
+commit 水位推到 `fece258123879acf4ac6535dc4986b32e13df0c9`；PR 水位 308、issue 水位 309。完整理由與證據在 `docs/DECISIONS.md` 同日條目。
+
+| 項目 | 判斷 | 本 fork 的證據與範圍 |
+| --- | --- | --- |
+| `6236146`（#293） | 採用（最小重做） | 希伯來文 `פרק N`。先把上游 4 個測試放進本 fork，2 筆紅；`utils.py` 加 `_HE_CHAPTER`。上次的「等合併」條件成立。 |
+| `d2d4c53`（#304） | 部分採用 | 只移植 `sanitize_extracted_text` 的 `isascii()` 提早返回與逐不同字元替換；`is_invisible_codepoint` 不動（本 fork 與掃描器共用，且分開檢查 U+FFF9–U+FFFB）。300 萬 CJK 字元 2.07 秒 → 0.15 秒。新增全碼位等價測試。 |
+| `fd332f4`（#296）、`2296b08`（#302） | 已採用，核對相同 | `parsers/rtf.py` 與上游逐位元組相同；`validate_skill.py` 的 `get_scalar` 與合併版逐行相同。 |
+| `d26a4f2`（#270） | 缺陷不存在 | `parsers/docx.py:49-52` 偵測到有文字的 SDT 就改走 zip parser；見 DECISIONS。 |
+| `ceeb270`（#301）、`65b2f64`（#298） | 不適用 | 本 fork 沒有 `pdf_inspector_integration.py`；lens 只有 claude／copilot／amp，文件與程式一致。 |
+| `fece258`（#303） | 不採用 | 上游自家 workflow 的 Dependabot 升版。 |
+| #307／issue #306 | 不採用，等合併 | 新功能 `--pdf-page-sidecar`，不是缺陷。 |
+| #308 | 不採用 | docling-serve 遠端上傳，與硬性邊界衝突（同 #305）。 |
+| issue #309 | 不採用 | 安裝內容精簡的打包提案。 |
