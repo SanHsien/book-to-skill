@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import codecs
 import html
 import posixpath
 import re
@@ -27,6 +28,17 @@ _IMAGE_EXTENSIONS = (
 # permits an explicit namespace prefix (for example ``<opf:item>``). Keep the
 # existing tolerant, regex-based fallback while accepting that equivalent form.
 _OPF_ELEMENT_PREFIX = r"(?:[A-Za-z_][\w.-]*:)?"
+
+
+def _decode_epub_xml(data: bytes) -> str:
+    """Decode BOM-marked UTF-16 XML, retaining the existing UTF-8 fallback."""
+    # UTF-32 LE starts with the UTF-16 LE BOM. EPUB XML requires UTF-8 or
+    # UTF-16; leave UTF-32 on the historical UTF-8 replacement path.
+    if not data.startswith(codecs.BOM_UTF32_LE) and data.startswith(
+        (codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)
+    ):
+        return data.decode("utf-16", errors="replace")
+    return data.decode("utf-8", errors="replace")
 
 
 def _opf_opening_tags(opf_text: str, local_name: str) -> list[str]:
@@ -89,7 +101,7 @@ def _find_opf_path(zf: zipfile.ZipFile) -> str | None:
     """
     # Spec-defined: read container.xml for the rootfile path
     try:
-        container = zf.read("META-INF/container.xml").decode("utf-8", errors="replace")
+        container = _decode_epub_xml(zf.read("META-INF/container.xml"))
         match = re.search(r'full-path=["\']([^"\']+\.opf)["\']', container)
         if match:
             return match.group(1)
@@ -127,7 +139,7 @@ def extract_with_zipfile(epub_path: str) -> str | None:
             spine_order: list[str] = []
             seen: set[str] = set()
             if opf_path:
-                opf_text = zf.read(opf_path).decode("utf-8", errors="replace")
+                opf_text = _decode_epub_xml(zf.read(opf_path))
 
                 # Manifest: item id -> resolved href. Parse each <item> opening
                 # tag so attribute order (id before/after href) does not matter;
@@ -169,7 +181,7 @@ def extract_with_zipfile(epub_path: str) -> str | None:
             parts = []
             for name in html_files:
                 try:
-                    raw = zf.read(name).decode("utf-8", errors="replace")
+                    raw = _decode_epub_xml(zf.read(name))
                     parser = _HTMLTextExtractor()
                     parser.feed(raw)
                     parts.append(parser.get_text())
@@ -188,7 +200,7 @@ def count_epub_chapters(epub_path: str) -> int:
             opf_path = _find_opf_path(zf)
             if not opf_path:
                 return 0
-            opf_text = zf.read(opf_path).decode("utf-8", errors="replace")
+            opf_text = _decode_epub_xml(zf.read(opf_path))
             return len(_opf_opening_tags(opf_text, "itemref"))
     except Exception:
         return 0
