@@ -549,9 +549,12 @@ def check_upstream_website(baseline: dict) -> dict | None:
             if response.status != 200:
                 return {"url": website, "error": f"HTTP {response.status}"}
             data = json.loads(response.read().decode("utf-8"))
+        version = data.get("version") if isinstance(data, dict) else None
+        if not isinstance(version, str) or not version.strip():
+            return {"url": website, "error": "version.json has no non-empty string version"}
         return {
             "url": website,
-            "current": str(data.get("version", "")).strip(),
+            "current": version.strip(),
             "reviewed": reviewed,
         }
     except Exception as exc:  # network, TLS, JSON: all mean "could not read", never "unchanged"
