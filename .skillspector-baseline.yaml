@@ -223,19 +223,19 @@ fingerprints:
   rule_id: RA2
   file: SKILL.md
   reason: "2026-10-24 隨 SkillSpector 2.12.0 審閱：安裝路徑說明（把 SKILLS_HOME 設為 ~/.agents/skills），是技能落地位置的規格，不是跨 session 持久化指令。"
-- hash: sha256:3478de7e63186390e1b9e136c49b4846843e90e78d0a523e105d298c23a7fb90
+- hash: sha256:212f31498fa9b94e342e33637aae33fffa932e3bba89dd3a8d3abc63a570d1bb
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：文件明確禁止推送 upstream，並要求只推 SanHsien origin；這是安全邊界說明，不是參數濫用指令。雜湊綁檔案內容，每次追加決策條目都會換。
-- hash: sha256:ad30bcf6d46be47be2c9f65aa94ccd35a725eb66e6d56640d1bda7643e451a8f
+- hash: sha256:598e30eb98c2ffe37d0ecadd11042517b9fb99b9d5e6a13552569bf6e8c7b8df
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：同一段禁止推送 upstream 的 normalized view；沒有執行路徑，且保留此文字能防止誤推母 repo。雜湊綁檔案內容，每次追加決策條目都會換。
-- hash: sha256:2c6046a350ca8ca6fd60fcdc8f03c4d2777631f7b83794778a05235eac935d2b
+- hash: sha256:2bd375b933a574927786742c80962e76be47dcec933a55bf9b697d81d82168df
   rule_id: RP1
   file: docs/DECISIONS.md
   reason: "2026-10-24 隨 SkillSpector 2.12.0 審閱：決策紀錄在說明發布說明裡的 `npx skills` 已固定為 skills@1.5.23，本身就是鎖版的紀錄，不是要執行的未鎖版指令。"
-- hash: sha256:150c8c70ae1c0c27fa187a3b09f70de4a963fb05754277c25ef8f3a63f063414
+- hash: sha256:6f738f569e5560b6d7221d08909365d16f01591f5d1dd7753bbc47c463feae1f
   rule_id: RP1
   file: docs/DECISIONS.md
   reason: "2026-10-24 隨 SkillSpector 2.12.0 審閱：決策紀錄在說明發布說明裡的 `npx skills` 已固定為 skills@1.5.23，本身就是鎖版的紀錄，不是要執行的未鎖版指令。"
@@ -244,3 +244,11 @@ fingerprints:
   rule_id: AST4
   file: tools/check_upstream_updates.py
   reason: 合理功能：艦隊共用的上游檢查正本（SanHsien/repo-fleet-ops tools/canonical）以 shell false 的 argv 串列呼叫 git／gh，指令名稱為程式內常數、含逾時；不拼接使用者輸入，也不使用 shell。
+- hash: sha256:1508f117062399d55c776796e16fadf083c84b565c46d9525aca0f49db05e837
+  rule_id: E2
+  file: tests/test_epub_utf16.py
+  reason: "2026-11-02 審閱（上游 #311 cherry-pick 帶入）：測試複製 os.environ 只為了加上 BOOK_SKILL_WORKDIR 指向暫存目錄，再交給子程序執行本 repo 的 extract.py；沒有列舉、搜尋或外傳任何環境變數。"
+- hash: sha256:2b3f4b813dca076b2cad67dcea42b561ce896fb51ba762d4458949afb80d2787
+  rule_id: AST4
+  file: tests/test_epub_utf16.py
+  reason: "2026-11-02 審閱（上游 #311 cherry-pick 帶入）：測試以 shell false 的固定 argv 陣列執行本 repo 的 scripts/extract.py，輸入是測試自建的合成 EPUB，並有 60 秒 timeout，不拼接 shell。"

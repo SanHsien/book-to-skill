@@ -551,3 +551,22 @@ PDF 的 model-free NativePdfPipeline 回報 backend parse failure，尚未區分
 ## 2026-11-02：`pypdf` 前進到 6.21.4（安全）
 
 自我掃描在 `pyproject.toml` 報 SC4：`pypdf==6.21.2` 新增 7 筆 OSV advisory（含取 page labels 的長時間執行、大量記憶體）。處理不可信 PDF，正是本 pin 要跟的東西，升到 6.21.4。pypdf 相關測試在該版本實跑通過（7 passed、1 skipped），本 repo 沒有覆寫 pypdf 上限。同批把上游檢查器換成艦隊正本新版，`.skillspector-baseline.yaml` 換該檔的 AST4 雜湊，也換本檔 4 個綁內容的指紋（TM1、RP1 各 2），reason 不變，仍 41 項。
+
+## 2026-11-02：上游增量審查到 `7540eef`（PR #311–#321、issue #310–#320）
+
+範圍：commit `fece258..7540eef`（1 筆）、PR #311、#313–#315、#317–#319、#321、issue #310、#312、#316、#320。已逐筆讀 diff；PR 取 2026-11-02 當下的 head，對 diff 掃過行內長空白、`eval`／`new Function`／`globalThis`／base64、超長行（判準八），八筆都沒有隱藏內容（僅 #315 的測試字串含一行置中空白的 `CHAPTER 1`，#315、#319 各有一行超長的文件文字，皆為正常內容）。
+
+| 項目 | 判斷 | 本 fork 的證據與觸發條件 |
+| --- | --- | --- |
+| `7540eef`（[#311](https://github.com/virgiliojr94/book-to-skill/pull/311)，Stamina9，+144／−4，2 檔）與 issue [#310](https://github.com/virgiliojr94/book-to-skill/issues/310) | **採用**（cherry-pick，保留原作者，本機 `36391f8`） | 缺陷在本 fork 仍存在：`book_to_skill/parsers/epub.py` 的 `container.xml`、OPF、內容文件、`count_epub_chapters` 四處都是 `decode("utf-8", errors="replace")`，UTF-16 的 EPUB XML 會變亂碼、spine 抓不到。補丁只加 `_decode_epub_xml`（有 BOM 才走 UTF-16，UTF-32 LE 仍走原路徑），並附 `tests/test_epub_utf16.py`；cherry-pick 無衝突，該測試 7 passed。 |
+| [#313](https://github.com/virgiliojr94/book-to-skill/pull/313)（Stamina9，head `cd660e66`，+61，2 檔）與 issue [#312](https://github.com/virgiliojr94/book-to-skill/issues/312) | 條件式，等合併 | 缺陷屬實：`book_to_skill/parsers/rtf.py` 的 `strip_rtf_fallback` 只處理 `\par`、`\tab`，`\line` 會被後面的通用控制字元規則吃掉、前後文黏在一起。但 PR 仍 OPEN、0 則留言，做法才一行正則；釘在 `monitored`，合併或 head 移動時重看，屆時直接 cherry-pick。 |
+| [#317](https://github.com/virgiliojr94/book-to-skill/pull/317)（Stamina9，head `46ddfc71`，+101，2 檔）與 issue [#316](https://github.com/virgiliojr94/book-to-skill/issues/316) | 條件式，等合併 | 與 #311 同檔：`_find_opf_path` 用正則直接取 `full-path`，沒有還原 XML 字元參照（`&#x..;`、`&amp;`）。OPEN、0 則留言；釘在 `monitored`，合併後 cherry-pick（需與已採用的 `_decode_epub_xml` 一起驗）。 |
+| [#319](https://github.com/virgiliojr94/book-to-skill/pull/319)（teachershuang，head `a5a60a13`，+149／−1，3 檔） | 條件式，等合併 | 動到根目錄產品 `SKILL.md` 的文案，本 fork 的硬性邊界是不覆寫產品 `SKILL.md`，且 `utils.py` 的 technical 模式回報路徑與本 fork 的 gate 有交集；OPEN、0 則留言。釘在 `monitored`，合併後再評估只取 `utils.py` 與測試的部分。 |
+| [#315](https://github.com/virgiliojr94/book-to-skill/pull/315)（AminMortezaie，head `b54cd203`，+526／−2，7 檔） | 條件式，等合併 | 新功能：PDF 大綱偵測章節並在 `metadata.json` 寫 `chapter_ranges`，動到 `parsers/pdf.py`、`utils.py`、`SKILL.md` 與整合模組，屬產品主流程，超過小改動範圍；OPEN、0 則留言。釘在 `monitored`，合併後若要採用，先在 `ROADMAP.md` 排工。 |
+| [#314](https://github.com/virgiliojr94/book-to-skill/pull/314)、[#318](https://github.com/virgiliojr94/book-to-skill/pull/318)（dex0shubham，+38、+63／−11） | 不採用 | 為亞美尼亞文、僧伽羅文章節標題加關鍵字，兩檔各改 `extractor` 的正則與測試。本 fork 沒有使用者提出這兩種語言的需求，且兩筆都改同一份關鍵字表，彼此會衝突；觸發條件：本 fork 有人要處理這兩種文字，或上游合併後再看。 |
+| [#321](https://github.com/virgiliojr94/book-to-skill/pull/321)（CarlaCristinaSA，+207／−169，12 檔）與 issue [#320](https://github.com/virgiliojr94/book-to-skill/issues/320) | 不採用 | 只重構測試（改 12 個測試檔來消除 TEMPY 偵測到的 test smell），不改行為。本 fork 這些測試檔另有分歧（Windows gate、`test_repo_hygiene.py` 等），整批套用會與本 fork 的修改衝突，換不到行為保護。 |
+
+**水位**：commit 推到 `7540eef`、PR 到 321、issue 到 320。#313、#315、#317、#319 以 `monitored` 釘住當下的 head 與 state（open），上游合併或改 head 時檢查器會再次回報。
+
+**驗證**：見提交說明。
+
