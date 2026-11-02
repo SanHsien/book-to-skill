@@ -550,4 +550,4 @@ PDF 的 model-free NativePdfPipeline 回報 backend parse failure，尚未區分
 
 ## 2026-11-02：`pypdf` 前進到 6.21.4（安全）
 
-自我掃描在 `pyproject.toml` 報 SC4：`pypdf==6.21.2` 新增 7 筆 OSV advisory（含取 page labels 的長時間執行、大量記憶體）。處理不可信 PDF，正是本 pin 要跟的東西，升到 6.21.4。pypdf 相關測試在該版本實跑通過（7 passed、1 skipped），本 repo 沒有覆寫 pypdf 上限。同批把上游檢查器換成艦隊正本新版，`.skillspector-baseline.yaml` 只換該檔的 AST4 雜湊。
+自我掃描在 `pyproject.toml` 報 SC4：`pypdf==6.21.2` 新增 7 筆 OSV advisory（含取 page labels 的長時間執行、大量記憶體）。處理不可信 PDF，正是本 pin 要跟的東西，升到 6.21.4。pypdf 相關測試在該版本實跑通過（7 passed、1 skipped），本 repo 沒有覆寫 pypdf 上限。同批把上游檢查器換成艦隊正本新版，`.skillspector-baseline.yaml` 換該檔的 AST4 雜湊，也換本檔 4 個綁內容的指紋（TM1、RP1 各 2），reason 不變，仍 41 項。
