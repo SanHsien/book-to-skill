@@ -577,3 +577,24 @@ PDF 的 model-free NativePdfPipeline 回報 backend parse failure，尚未區分
 **理由**：`ubuntu-latest` 已換成 Ubuntu 26.04，`actions/setup-python` 在該映像沒有 Python 3.9（官方 versions-manifest 的 3.9.25 只有 22.04、24.04），Set up Python 步驟會失敗：`The version '3.9' with architecture 'x64' was not found for Ubuntu 26.04`。此舉保住既有 Python 3.9 支援宣告的測試，不縮減矩陣。
 
 **重審條件**：`ubuntu-24.04` runner 退役或停止支援 Python 3.9、`setup-python` 補上 26.04 的 3.9 build、或決定放棄 Python 3.9 支援時，移除此釘版。
+
+## 2026-11-06：續延 Docling 2.148.0 deferral
+
+**決定**：將 docling deferral 的已審查版本由 `2.142.1`
+更新為 `2.148.0`；產品 pin 維持 `docling==2.132.0`，不提高相容性下限、不新增永久 hold。
+
+**證據與理由**：PyPI 最新為 `2.148.0`（2026-11-06），其他精確釘版均為現行版。
+已讀官方 [v2.143.0](https://github.com/docling-project/docling/releases/tag/v2.143.0)、
+[v2.144.0](https://github.com/docling-project/docling/releases/tag/v2.144.0)、
+[v2.145.0](https://github.com/docling-project/docling/releases/tag/v2.145.0)、
+[v2.146.0](https://github.com/docling-project/docling/releases/tag/v2.146.0)、
+[v2.147.0](https://github.com/docling-project/docling/releases/tag/v2.147.0)、
+[v2.148.0](https://github.com/docling-project/docling/releases/tag/v2.148.0) release notes：
+包含 OCR 文字層替換、PDF 阿拉伯文字形與未映射字元正規化、pipeline backend 卸載調整；
+2.148.0 新增 surya v2.5 與 iCalendar backend，並修正多項 parser 與 TableFormer 表格文字保留問題，均無 security 或 breaking 項目。
+OSV API 對 PyPI `docling` `2.132.0` 查詢回傳 `{}`；這只是當下未查到公告，不代表完整安全保證。
+尚未完成 2026-10-09 決策要求的真實模型
+StandardPdfPipeline 文字／表格／fallback 驗收，因尚無既有本機模型，未做驗收，也不宣稱新版不相容。
+
+**重審條件**：PyPI 超過 `2.148.0` 時此延後自動失效；若已有本機模型，提前依
+`ROADMAP.md` 的「重新評估 Docling 升版」列執行 bounded technical PDF 驗收。

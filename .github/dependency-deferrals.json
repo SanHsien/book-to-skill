@@ -1,8 +1,8 @@
 {
   "deferrals": {
     "docling": {
-      "deferredLatest": "2.142.1",
-      "reason": "2026-10-24 續延：2.136.0 的精準延後已因 PyPI 前進而如設計失效。重評結果：v2.137.0–v2.142.1 的 release notes 無 security／CVE／breaking／deprecation 項目；OSV 對 2.132.0 仍無公告；本機仍無 docling 模型快取，原重評條件（以既有本機模型完成一次 bounded technical PDF 驗收）未達成，本輪同樣不下載模型。因此維持 2.132.0，不宣稱新版不相容。docling 近乎每日發版，本延後預期很快再失效，屆時重複同一檢查；具備本機模型後應改做實際驗收再升版。前次（2.136.0）審查紀錄：已審查 v2.132.0...v2.136.0 的 98 commits／197 files：標準 PDF pipeline 將 page-size 狀態移至 ConversionResult，並新增 RapidOCR model_size 與 code/formula generation 控制。隔離 2.136.0 的本機 Markdown／PDF option construction 通過；唯一 synthetic PDF 的 NativePdfPipeline smoke 回報 backend parse failure，尚不能區分 fixture／本機環境原因，也未驗收產品實際使用的 StandardPdfPipeline table/layout 模型路徑。本輪禁止下載模型，因此維持已修補且 OSV 查詢無公告的 2.132.0，不宣稱新版不相容。重評條件：具備既有本機模型的 bounded technical PDF 驗收，或 PyPI 超過 2.136.0（此精準 deferral 自動失效）。"
+      "deferredLatest": "2.148.0",
+      "reason": "2026-11-06 重評：已核對官方 v2.143.0–v2.148.0 release notes，包含 OCR 文字層替換、PDF 字元正規化、pipeline backend 卸載調整，以及 2.148.0 的 surya v2.5、iCalendar backend 與多項 parser／TableFormer 修正，均無 security 或 breaking 項目；OSV 對現有 2.132.0 查詢回傳空結果（不代表完整安全保證）。尚無既有本機模型，未做 StandardPdfPipeline 文字／表格／fallback 驗收，故維持 2.132.0，不宣稱新版不相容。只延後已評估的 2.148.0；PyPI 超過此版即失效，或具備既有本機模型時提前重評。歷史評估見 docs/DECISIONS.md 的 2026-10-09 與 2026-11-06 紀錄。"
     }
   }
 }
