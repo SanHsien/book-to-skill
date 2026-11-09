@@ -710,6 +710,29 @@ class TestDetectStructure:
         assert _chapter_number("פרקים רבים בספר") is None
         assert _chapter_number("פרק") is None
 
+    def test_detects_armenian_chapters(self):
+        """Armenian headings: `Գլուխ N`, incl. all-caps ԳԼՈՒԽ and lowercase."""
+        text = (
+            "Գլուխ 1 Ներածություն\nամփոփում\n"
+            "ԳԼՈՒԽ 2 Մեթոդներ\nամփոփում\n"
+            "գլուխ 3 Արդյունքներ\nամփոփում"
+        )
+        assert detect_structure(text)["chapters_detected"] == 3
+
+    def test_armenian_markdown_prefix(self):
+        text = "## Գլուխ 1 Առաջին\nամփոփում\n## Գլուխ 2 Երկրորդ\nամփոփում"
+        assert detect_structure(text)["chapters_detected"] == 2
+
+    def test_armenian_prose_is_not_a_chapter_heading(self):
+        """The bare word, an inflected stem, and the plural+number are not headings."""
+        from book_to_skill.utils import _chapter_number
+
+        assert _chapter_number("Գլուխ") is None
+        assert _chapter_number("այս գլխում we քննարկում ենք") is None
+        # Plural "Գլուխներ 5" ("chapters 5") must not read as chapter 5: the
+        # word has to be followed by whitespace, not more letters.
+        assert _chapter_number("Գլուխներ 5") is None
+
     def test_hebrew_heading_survives_bidi_controls(self):
         """Bidi wrappers are stripped before detection, so the heading still counts."""
         from book_to_skill.sanitize import sanitize_extracted_text
@@ -781,6 +804,53 @@ class TestDetectStructure:
         assert _chapter_number("මෙම පරිච්ඡේදයේ අපි සාකච්ඡා කරමු") is None
         assert _chapter_number("තවත් පරිච්ඡේදයක් ඇත") is None
         assert _chapter_number("පරිච්ඡේදය") is None
+
+    def test_detects_sinhala_adhyaya_chapters(self):
+        """The Sanskrit-loan word අධ්‍යාය is also a Sinhala chapter heading."""
+        text = (
+            "අධ්\u200dයාය 1 හැඳින්වීම\nසාරාංශය\n"
+            "අධ්\u200dයාය ෨ ක්‍රම\nසාරාංශය\n"
+            "අධ්\u200dයාය 3 ප්‍රතිඵල\nසාරාංශය"
+        )
+        assert detect_structure(text)["chapters_detected"] == 3
+
+    def test_sinhala_adhyaya_matches_with_and_without_the_joiner(self):
+        """The ZWJ is optional: sanitization strips it before detection.
+
+        sanitize_extracted_text() removes U+200D, so the spelling that reaches
+        the matcher has no joiner even though every real source file has one.
+        Both forms must resolve.
+        """
+        from book_to_skill.sanitize import sanitize_extracted_text
+        from book_to_skill.utils import _chapter_number
+
+        with_joiner = "අධ්\u200dයාය 7"
+        sanitized, removed = sanitize_extracted_text(with_joiner)
+        assert removed == 1
+        assert sanitized == "අධ්යාය 7"
+        assert _chapter_number(with_joiner) == 7
+        assert _chapter_number(sanitized) == 7
+
+    def test_sinhala_adhyaya_prose_is_not_a_chapter_heading(self):
+        """Inflected forms and the bare word are not headings, joiner or not."""
+        from book_to_skill.utils import _chapter_number
+
+        assert _chapter_number("මෙම අධ්\u200dයායේ අපි සාකච්ඡා කරමු") is None
+        assert _chapter_number("තවත් අධ්\u200dයායක් ඇත") is None
+        assert _chapter_number("අධ්\u200dයාය") is None
+        assert _chapter_number("අධ්යාය") is None
+
+    def test_sinhala_adhyaya_does_not_collide_with_other_indic_scripts(self):
+        """අධ්‍යාය shares a transliteration with other scripts, not a block.
+
+        Gujarati (અધ્યાય) is not detected in this fork, so only Devanagari and
+        Gurmukhi are asserted here; upstream also asserts Gujarati.
+        """
+        from book_to_skill.utils import _chapter_number
+
+        assert _chapter_number("අධ්\u200dයාය ෫") == 5
+        assert _chapter_number("अध्याय ५") == 5
+        assert _chapter_number("ਅਧਿਆਇ ੫") == 5
 
     # ── Korean chapter headings ────────────────────────────────────────────
 

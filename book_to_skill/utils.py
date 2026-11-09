@@ -241,18 +241,27 @@ _PA_CHAPTER = re.compile(
     rf"^\s*(?:#{{1,6}}\s+)?(?:ਕਾਂਡ|ਅਧਿਆਇ)\s*([0-9{_PA_DIGITS}]+)\b"
 )
 
-# Sinhala chapter headings: "පරිච්ඡේදය 1", "පරිච්ඡේදය ෨", "## පරිච්ඡේදය 2".
-# Modern Sinhala prints numbers with ASCII digits; the Lith digits
-# (U+0DE6-U+0DEF) are included for historical texts and remapped like the other
-# Indic blocks above. Only පරිච්ඡේදය is matched, not the Sanskrit loan අධ්‍යාය:
-# that word carries a ZERO WIDTH JOINER inside its conjunct, and the sanitizer
-# strips U+200D before structure detection ever sees the text, so a pattern
-# containing one could never match. Requiring a number keeps prose that merely
-# inflects the word ("පරිච්ඡේදයේ") from matching.
+# Sinhala chapter headings: "පරිච්ඡේදය 1", "අධ්‍යාය ෨", "## පරිච්ඡේදය 2".
+# Two words are used: පරිච්ඡේදය and the Sanskrit loan අධ්‍යාය. Grouped next to
+# Tamil as the other Sri Lankan script. Modern Sinhala prints numbers with ASCII
+# digits; the Lith digits (U+0DE6-U+0DEF) are included for historical texts,
+# remapped like the other Indic blocks.
+#
+# The joiner in අධ්‍යාය is matched optionally, and that is deliberate: the word
+# carries a ZERO WIDTH JOINER inside its ධ්‍ය conjunct, but
+# sanitize_extracted_text() strips U+200D before detect_structure() ever runs, so
+# the spelling that reaches this pattern has no joiner even though every real
+# source file has one. "\u200d?" matches both, which keeps the pattern working
+# for callers that reach _chapter_number() without sanitizing first.
+#
+# අධ්‍යාය shares its transliteration with Devanagari अध्याय, Gujarati અધ્યાય and
+# Gurmukhi ਅਧਿਆਇ, but Sinhala occupies U+0D80-U+0DFF and none of those blocks
+# overlap it, so the matchers cannot see each other's text. Requiring a number
+# keeps prose that merely inflects a word ("පරිච්ඡේදයේ", "අධ්‍යායේ") from matching.
 _SI_DIGITS = "෦-෯"
 _SI_DIGIT_MAP = str.maketrans("෦෧෨෩෪෫෬෭෮෯", "0123456789")
 _SI_CHAPTER = re.compile(
-    rf"^\s*(?:#{{1,6}}\s+)?පරිච්ඡේදය\s*([0-9{_SI_DIGITS}]+)\b"
+    rf"^\s*(?:#{{1,6}}\s+)?(?:පරිච්ඡේදය|අධ්\u200d?යාය)\s*([0-9{_SI_DIGITS}]+)\b"
 )
 
 # Russian (Cyrillic) chapter headings: "Глава 1", "ГЛАВА 12", "## Глава 2".
@@ -277,6 +286,17 @@ _EL_CHAPTER = re.compile(r"^\s*(?:#{1,6}\s+)?κεφ[άα]λαιο\s+([0-9]+)\b",
 # followed by a number. Gematria numbering ("פרק א") is a separate letter-to-
 # number mapping and is deliberately not handled.
 _HE_CHAPTER = re.compile(r"^\s*(?:#{1,6}\s+)?פרק\s+([0-9]+)\b")
+
+# Armenian chapter headings: "Գլուխ 1", "ԳԼՈՒԽ 12", "## Գլուխ 2".
+# "Գլուխ" ("chapter") + a number, with ordinary Arabic digits so no remap is
+# needed. Armenian is bicameral and — unlike Greek above — its case mapping
+# round-trips exactly ("Գլուխ".upper() == "ԳԼՈՒԽ" letter for letter), so plain
+# re.IGNORECASE is enough and no letter class is required. The word also means
+# "head", so requiring *whitespace* then a number does the guarding: an
+# inflected form elides the ու stem vowel ("գլխում") and so shares no prefix,
+# and the plural keeps the word intact, which is why \s+ matters — it stops
+# "Գլուխներ 5" ("chapters 5") from reading as chapter 5.
+_HY_CHAPTER = re.compile(r"^\s*(?:#{1,6}\s+)?գլուխ\s+([0-9]+)\b", re.IGNORECASE)
 
 # Korean chapter headings: "제1장 총칙", "## 제4장 근로시간과 휴식", "제6장의2 …".
 # 제 + Arabic numeral + a classifier (장 chapter / 편 part / 절 section / 관
@@ -794,6 +814,9 @@ def _match_chapter_number(
     hem = _HE_CHAPTER.match(s)
     if hem:
         return int(hem.group(1))
+    hym = _HY_CHAPTER.match(s)
+    if hym:
+        return int(hym.group(1))
 
     km = _KO_CHAPTER.match(s)
     if km:
@@ -821,10 +844,11 @@ def _chapter_number(line: str, prev_line: str | None = None) -> int | None:
     Telugu ("అధ్యాయము 1", "అధ్యాయం ౧", "## అధ్యాయం 2"),
     Kannada ("ಅಧ್ಯಾಯ 1", "ಅಧ್ಯಾಯ ೧", "## ಅಧ್ಯಾಯ 2"),
     Punjabi ("ਕਾਂਡ 1", "ਅਧਿਆਇ ੧", "## ਕਾਂਡ 2"),
-    Sinhala ("පරිච්ඡේදය 1", "පරිච්ඡේදය ෨", "## පරිච්ඡේදය 2"),
+    Sinhala ("පරිච්ඡේදය 1", "අධ්‍යාය ෨", "## පරිච්ඡේදය 2"),
     Russian ("Глава 1", "ГЛАВА 12", "## Глава 2"),
     Greek ("Κεφάλαιο 1", "ΚΕΦΑΛΑΙΟ 12", "## Κεφάλαιο 2"),
     Hebrew ("פרק 1", "פרק 12", "## פרק 2"),
+    Armenian ("Գլուխ 1", "ԳԼՈՒԽ 12", "## Գլուխ 2"),
     Korean ("제1장 총칙", "## 제4장 근로시간과 휴식"), and
     Persian ("فصل ۱", "فصل اول", "فصل بیست و یکم", "بخش ۲: مفاهیم",
     "## فصل ۱: مقدمه", PDF-glued "فصل سی و چهارمخداحافظ…") heading styles — each
