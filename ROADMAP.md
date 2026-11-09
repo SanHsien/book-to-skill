@@ -21,7 +21,8 @@
 | 修可選旗標吞掉輸入檔的順序問題 | 上游修正，或本 fork 呼叫端改成把旗標放在檔名前 | 先重現 `extract.py --install-missing book.pdf` 及 `--mode` 同類情境；驗證檔名不消失、合法模式與既有標準呼叫不變，相關 pytest 與 Windows gate 通過 | Codex | `docs/DECISIONS.md:489-490`；`book_to_skill/utils.py:957`；深掃報告（2026-10-26）〈觀察清單〉 |
 | 封閉過期工作鎖回收的殘餘競態 | 出現並行回收實例，或正式需要原生 POSIX 並行支援 | 用兩個程序同步回收同一過期鎖，驗證只有一個持有者、輸出不覆寫；比較原子接手與 OS 鎖方案，Windows 及目標 POSIX 各實跑 | Claude Opus | `docs/DECISIONS.md:487`；`book_to_skill/utils.py:1414`；`9a95fbc`、`fc92bc8` |
 | 重新評估 Docling 升版 | freshness 延後自動失效，或具備既有本機模型可完成 technical PDF 驗收 | 先查 release notes 與安全公告；以一份合法小型 PDF 走實際 StandardPdfPipeline，核對文字、表格及 fallback；無模型時記錄未驗，不宣稱不相容、不無限下載重試 | Codex | `.github/dependency-deferrals.json`；`docs/DECISIONS.md:366-388`；`AGENTS.md:70,95-106` |
-| 評估 PDF 頁碼 sidecar | 上游 #307 合併，或維護者明確要求頁碼回溯 | 重讀 diff、定義公開旗標與輸出格式，驗證頁碼對應、無旗標時舊輸出不變；相關 PDF 測試、技能掃描與 Windows gate 通過 | Claude Sonnet | `docs/DECISIONS.md`〈2026-10-28〉的 #307／issue #306；`docs/UPSTREAM.md` 同日審查表 |
+| 評估 PDF 頁碼 sidecar | 上游 #327 與 #331 都合併（issue #326、#330 關閉），或維護者明確要求頁碼回溯 | 重讀 diff、定義公開旗標與輸出格式，驗證頁碼對應、無旗標時舊輸出不變；相關 PDF 測試、技能掃描與 Windows gate 通過 | Claude Sonnet | `docs/DECISIONS.md`〈2026-11-09〉的 #307／#327／#331；`tools/upstream_baseline.json` 的 `monitored` |
+| 評估 PDF 大綱章節偵測 | 有書的章節偵測因 PDF 大綱可用而在本 fork 實測失準，或維護者要求 | 先在合法小型 PDF 重現編號圖說被誤判成章節；只取 `parsers/pdf.py` 與 `utils.py` 的大綱路徑，不引進 `pdf_inspector_integration.py`；先紅後綠，Windows gate 通過 | Claude Sonnet | `docs/DECISIONS.md`〈2026-11-09〉的 `182e185`（#315） |
 
 ## 刻意不做
 

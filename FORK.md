@@ -25,6 +25,7 @@
 | `.github/workflows/upstream-check.yml` | 每週對 `upstream/master` 做未審查 commit 檢查 |
 | `.github/workflows/deploy-docs.yml` | 部署步驟僅在 `virgiliojr94/book-to-skill` 執行 |
 | `docs/DECISIONS.md`、`docs/UPSTREAM.md`、`docs/DEVELOPMENT.md` | fork 維護文件，不列入 MkDocs nav |
+| `SKILL.md` technical 模式告知句 | 併入上游 #319 的 EPUB 後備說明，並保留本 fork 的「首次執行可能下載模型、不保證離線」；理由見 `docs/DECISIONS.md`〈2026-11-09〉 |
 
 產品 `SKILL.md`、`book_to_skill/`、`scripts/extract.py` 與選配抽取器行為以上游為準，除非有已記錄的 fork 修正。
 

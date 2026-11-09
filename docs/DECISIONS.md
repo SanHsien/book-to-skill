@@ -598,3 +598,42 @@ StandardPdfPipeline 文字／表格／fallback 驗收，因尚無既有本機模
 
 **重審條件**：PyPI 超過 `2.148.0` 時此延後自動失效；若已有本機模型，提前依
 `ROADMAP.md` 的「重新評估 Docling 升版」列執行 bounded technical PDF 驗收。
+
+## 2026-11-09：上游增量審查到 `e7bb659`（PR #322–#331、issue #322、#326、#330）
+
+範圍：commit `7540eef..e7bb659`（9 筆，`git diff --shortstat` 為 30 檔 +1640／−188）；PR #323–#325、#327–#329、#331；issue #322、#326、#330；先前釘在 `monitored` 的 #313、#315、#317、#319（四筆都已離開 open）。用 `git fetch upstream master` 與 `git fetch upstream pull/<n>/head` 唯讀取得，PR 取 2026-11-09 當下的 head：#323 `d3933587`、#324 `010fdae9`、#325 `96d481f3`、#327 `80982543`、#328 `9ad61149`、#329 `0a6221e4`、#331 `da3514b3`，全部 open、0 則留言。逐檔讀 diff，對新增行掃行內 40 個以上空白夾內容、`eval`／`exec`／`__import__`／`globalThis`／`pickle`／`b64decode`／`subprocess`、120 字元以上的 base64、零寬與雙向控制字元、變體選擇符與 tag 區字元。命中皆為正常內容：測試檔的 `import subprocess`／`subprocess.run`、既有測試的 `mock.patch("builtins.__import__")`、一行測試字串內的置中空白、僧伽羅文 `අධ්යාය` 一詞依規範含的零寬連字符 U+200D（本檔內已刪去該字元，只留字形）、`README.ja.md` 的表情符號變體選擇符（U+FE0F）。`tests/fixtures/pdf_page_provenance.pdf` 是 6 行純文字（`git diff --numstat` 顯示 +6），沒有 `/JavaScript`、`/OpenAction`、`/Launch`、`/EmbeddedFile`。
+
+**移植方式**：這輪移植 `epub.py` 時，第一次用整檔 `git checkout <上游 commit> -- epub.py`，結果 `git show --stat` 顯示 `epub.py` 26 增 9 減，上游 commit 是 23 增 1 減，多出的 8 行刪除蓋掉了本 fork 在該檔的內容，連帶 3 筆 EPUB 相關測試轉紅（`test_ebooklib_keeps_inline_chapter_text`、`test_epub_actual_spine_then_remaining_once`、`test_spine_invalid_refs_duplicate_and_no_spine`）。已重做：丟掉那兩個 commit，改用 `git diff <commit>^ <commit> -- <檔>` 產生 patch 再 `git apply`，之後 EPUB 相關測試全綠。含本 fork 另有改動的檔案，一律以 patch 套用，不整檔 checkout。
+
+**採用（本次實作）**
+
+| 項目 | 本 fork 的證據 | 本機 commit |
+| --- | --- | --- |
+| `e330b13`（[#313](https://github.com/virgiliojr94/book-to-skill/pull/313)，Stamina9，issue [#312](https://github.com/virgiliojr94/book-to-skill/issues/312)）RTF 後備路徑保留 `\line` 換行 | 2026-11-02 記為「等合併」，現已合併，觸發條件成立。先放上游測試 `tests/test_rtf_line_break.py`，6 筆中 4 筆紅（`\line` 前後文黏在一起）；套 `rtf.py` 的 3 行後 rtf 相關 54 passed、1 skipped | `3663cc7` |
+| `9fb0dac`（[#317](https://github.com/virgiliojr94/book-to-skill/pull/317)，Stamina9，issue [#316](https://github.com/virgiliojr94/book-to-skill/issues/316)）`container.xml` 的 `full-path` 還原 XML 字元參照 | 同上，已合併。`tests/test_epub_container_entities.py` 7 筆中 6 筆紅（含 `&amp;`、`&#38;`、`&#x26;`、`&#x80;` 四個子案例與 CLI 案例）；套 patch 後 EPUB 相關 34 passed | `8021580` |
+| [#323](https://github.com/virgiliojr94/book-to-skill/pull/323)（Stamina9，head `d3933587`，+75／−4，2 檔，未合併）與 issue [#322](https://github.com/virgiliojr94/book-to-skill/issues/322) | 缺陷屬實：XML 允許 `=` 前後有空白、tab、換行，`_find_opf_path`、manifest、spine 的正則沒有容許，會挑到 decoy OPF 或丟掉 spine 順序，CLI 回報成功但章節順序反了。上游測試 6 筆中 5 筆紅；套用後 36 passed、17 subtests passed。判準同 #302：未合併但缺陷在本 fork 已重現、修法是四行正則放寬、範圍限於 `epub.py` | `33b9325` |
+| `c41312b`（[#314](https://github.com/virgiliojr94/book-to-skill/pull/314)）亞美尼亞文 `Գլուխ N` 與 `9af24de`（[#318](https://github.com/virgiliojr94/book-to-skill/pull/318)）僧伽羅文 `අධ්යාය` 章節偵測 | 2026-11-02 記為「不採用，上游合併後再看」，現已合併。比照 Tamil／Telugu／Punjabi／Hebrew 最小重做：`utils.py` 與上游已分岔，只移植 `_HY_CHAPTER`、`_SI_CHAPTER` 的第二個詞（ZWJ 設為可有可無，因為 `sanitize_extracted_text` 會先剝掉 U+200D）與 `_match_chapter_number` 的一個分支。上游 7 筆新測試放進 `tests/test_book_to_skill.py`，4 筆紅（亞美尼亞文章節、僧伽羅文章節、含／不含連字符、與其他文字不衝突），修後 118 passed、3 skipped。**與上游的差異**：上游「不與其他 Indic 文字衝突」測試多斷言一筆古吉拉特文 `અધ્યાય ૫`，本 fork 沒有古吉拉特文偵測，已刪去該斷言並在 docstring 註明 | `2a5d59a` |
+| `fdb37c1`（[#319](https://github.com/virgiliojr94/book-to-skill/pull/319)，teachershuang）technical 模式遇到 EPUB 時，警告並在 metadata 記 `fallback_reason: format_not_supported_in_technical_mode` | 2026-11-02 記為「合併後再評估只取 `utils.py` 與測試」，現已合併。缺陷在本 fork 屬實：EPUB 在 technical 模式靜默走文字鏈，使用者看不出沒有版面感知。上游 `tests/test_technical_epub.py` 7 筆中 4 筆紅、1 筆 passed、2 筆 skipped；套 `utils.py` 的 8 行後全綠 | `aba6577` |
+| `e7bb659`（[#90](https://github.com/virgiliojr94/book-to-skill/pull/90) 經 PR 合併）`cli.py`／`__main__.py` 進入點測試 | 只加測試，釘住既有行為，沒有紅燈階段；5 筆 `TestCliEntryPoint` 在本 fork 直接 passed | `c8683e0` |
+
+- **對上游檔案的改寫（SKILL.md）**：上游 #319 把 technical 模式的告知句整句換掉，會蓋掉本 fork 加的「First run may download models and is not guaranteed offline」。本 fork 的句子改成合併版：PDF 嘗試 Docling、保留離線說明、加上 EPUB 與其他格式走既有文字抽取器且程式碼／表格／公式可能失去結構、請查 metadata 的 `extraction_method` 與 `fallback_reason`。已登記在 `FORK.md`。
+- 全套 pytest：851 passed、9 skipped（`.venv` 安裝 `pdf`／`epub`／`docx`／`rtf`／`html` 後）。
+
+**延後（附觸發條件）**
+
+| 項目 | 判斷 | 證據與觸發條件 |
+| --- | --- | --- |
+| `6a8b756`（[#307](https://github.com/virgiliojr94/book-to-skill/pull/307)，8 檔 +442／−3）`--pdf-page-sidecar` 與 `pdf_pages.json`；後續缺陷 PR [#327](https://github.com/virgiliojr94/book-to-skill/pull/327)（head `80982543`，+97，2 檔，重跑沿用工作目錄時刪除舊 sidecar）、[#331](https://github.com/virgiliojr94/book-to-skill/pull/331)（head `da3514b3`，+56／−1，2 檔，頁數不符時逐頁標記）與 issue [#326](https://github.com/virgiliojr94/book-to-skill/issues/326)、[#330](https://github.com/virgiliojr94/book-to-skill/issues/330) | 延後 | 2026-10-28 的重訪條件「PR 合併」成立，但這是新公開旗標與新輸出檔格式，不是缺陷；本 fork 沒有任何使用者要從輸出回溯頁碼（`grep -c pdf-page-sidecar book_to_skill/utils.py` 為 0）。合併後已有 2 個缺陷 issue（#326、#330）與對應的 2 個修正 PR（#327、#331），分別是重用目錄留下舊頁面證據、頁數不符沒有逐頁標記，格式還在變。#327／#331 沒有 sidecar 時不適用。上游 `ci.yml` 另有 3 加 2 減的改動，不搬。觸發條件：#327 與 #331 都合併（釘在 `monitored`），或有人明確要求頁碼回溯；屆時走 `ROADMAP.md`〈評估 PDF 頁碼 sidecar〉那一列，整組一起評估 |
+| `182e185`（[#315](https://github.com/virgiliojr94/book-to-skill/pull/315)，7 檔 +526／−2）PDF 大綱偵測章節、`metadata.json` 寫 `chapter_ranges` | 延後 | PR 顯示 CLOSED（不是 MERGED），但 master 上有標題引用 #315 的 `182e185`。2026-11-02 預告「合併後若要採用，先在 `ROADMAP.md` 排工」，這次照做，新增〈評估 PDF 大綱章節偵測〉一列。屬產品主流程新功能：動 `parsers/pdf.py`（+60）、`utils.py`（+222／−1）、根目錄 `SKILL.md`，並碰到 `pdf_inspector_integration.py`，該檔在本 fork 不存在（`ls` 回 No such file），沿用 2026-10-24「不適用」的判斷處理那一半。觸發條件：有書的章節偵測因 PDF 大綱可用而明顯失準（目前 `apply_pdf_outline` 要解決的「編號圖說誤判成章節」尚無本 fork 實測重現），或維護者要求 |
+| [#325](https://github.com/virgiliojr94/book-to-skill/pull/325)（dex0shubham，head `96d481f3`，+38，2 檔）喬治亞文 `თავი` 章節偵測 | 延後，等合併 | 同 #314／#318 的做法，但與當時的 #293 一樣尚未合併；沿用「語言章節偵測等上游合併」。釘在 `monitored`，合併後最小重做 |
+
+**不採用**
+
+| 項目 | 判斷 | 證據與理由 |
+| --- | --- | --- |
+| `1efc6f4`（[#321](https://github.com/virgiliojr94/book-to-skill/pull/321)，12 檔 +207／−169） | 不採用 | 2026-11-02 已判不採用，現已合併，理由不變：只重構 12 個測試檔來消除 test smell，不改行為；本 fork 這些檔另有分歧（Windows gate、`test_repo_hygiene.py`），整批套用換不到行為保護 |
+| [#324](https://github.com/virgiliojr94/book-to-skill/pull/324)（blazardsky，head `010fdae9`，+22，6 檔）`.gitattributes` 的 `export-ignore` 與壓縮圖片 | 不採用 | 屬 issue #309（精簡安裝內容）的實作，2026-10-28 已判不採用。本 fork 的 `tests/`、`tools/validate_skill.py`、`docs/` 是驗收鏈的一部分，加 `export-ignore` 會讓 `git archive` 出來的副本缺少它們；本 fork 的 `.gitattributes` 另管行尾，不整檔搬 |
+| [#328](https://github.com/virgiliojr94/book-to-skill/pull/328)（eltociear，head `9ad61149`，+273／−3，5 檔） | 不採用 | 新增日文 README（266 行）並改 `README.md`、`README.ru.md`、`README.zh-CN.md` 各 2 行加語言連結。`AGENTS.md` 與 `FORK.md` 規定公開入口只維護 `README.md` 與 `README.en.md`，不新增或恢復其他語系 README，上游第三語系記錄略過 |
+| [#329](https://github.com/virgiliojr94/book-to-skill/pull/329)（dependabot，head `0a6221e4`，+2／−2，1 檔） | 不採用 | 只動上游 `codeql.yml`，`codeql-action` 4.39.1 → 4.39.3。本 fork 的 workflow 自持、由自己的 Dependabot 升版；沿用 #198／#213／#226／#303 的判斷 |
+
+**水位**：commit 推到 `e7bb659`、PR 到 331、issue 到 330。`monitored` 移除已處理的 #313、#315、#317、#319，改釘 #325、#327、#331（三筆皆 open，各為上述延後項的觸發來源）。
