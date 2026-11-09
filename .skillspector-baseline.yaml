@@ -22,8 +22,8 @@ reviewed_partials:
 - path: SKILL.md
   analyzer: static_patterns_tool_misuse
   reason_code: static_parse_limit
-  sha256: 4a6932bb4baf18fb491aba44ae0798f3c7f8ddb582044074360b4da6e21beaf1
-  reason: "2026-10-24 隨 SkillSpector 2.12.0 審閱：轉換器產品規格（787 行，Steps 0–10）。2.12.0 的工具濫用分析器在長段落上碰到跨度上限；人工審過內容是給宿主 agent 的抽取與安裝步驟，沒有管線執行、遠端腳本或編碼字串。"
+  sha256: c8244d432871b47652ce132296ad9017d11f3b7d9f4eb492184eb1fdb1f1012b
+  reason: "2026-10-24 隨 SkillSpector 2.12.0 審閱：轉換器產品規格（787 行，Steps 0–10）。2.12.0 的工具濫用分析器在長段落上碰到跨度上限；人工審過內容是給宿主 agent 的抽取與安裝步驟，沒有管線執行、遠端腳本或編碼字串。2026-11-09 重審：technical 模式告知句改寫（上游 #319 的 EPUB 後備說明），只增純文字說明，無指令、連結或編碼字串。"
 rules:
 - id: SC4
   path: requirements-security.txt
@@ -79,10 +79,10 @@ rules:
   message: '*subprocess*'
   reason: 已人工審查：測試 helper 以 shell false 的固定 argv 陣列呼叫 git，輸入為測試常數且有 30 秒 timeout，不拼接 shell。
 fingerprints:
-- hash: sha256:298454112d9b8c10fb9c47d325fcef76bd0b43c8d03963856e00c7a222866c70
+- hash: sha256:023754c860929fd2c2b702cec1c94d5490265a9be0fc17a021c73206890cd035
   rule_id: AE4
   file: tests/test_book_to_skill.py
-  reason: 已人工審查：測試刻意含 Unicode 正規化與控制字元樣本以驗證 sanitizer，另含古木基、僧伽羅、天城體等多種文字的章節標題樣本以驗證各語系偵測，不含偽裝指令或機密。2026-10-24 新增旁遮普文與僧伽羅文案例後換雜湊；2026-10-28 新增希伯來文章節標題案例（含 RLE／PDF 雙向控制字元以 chr() 組出，驗證清理後仍能偵測）後再換雜湊。
+  reason: 已人工審查：測試刻意含 Unicode 正規化與控制字元樣本以驗證 sanitizer，另含古木基、僧伽羅、天城體等多種文字的章節標題樣本以驗證各語系偵測，不含偽裝指令或機密。2026-10-24 新增旁遮普文與僧伽羅文案例後換雜湊；2026-10-28 新增希伯來文章節標題案例（含 RLE／PDF 雙向控制字元以 chr() 組出，驗證清理後仍能偵測）後再換雜湊。2026-11-09 新增亞美尼亞文、僧伽羅文 අධ්යාය 與 CLI 進入點測試後換雜湊
 - hash: sha256:e92667c2c4e30900d56935bb99b5add448e2a3f42df4342c9ecddd371a4f65ed
   rule_id: AST4
   file: book_to_skill/dependencies.py
@@ -163,7 +163,7 @@ fingerprints:
   rule_id: AST4
   file: tests/test_no_bytecode_pollution.py
   reason: 自我指涉：fixture 以 shell false 的固定 argv 執行唯讀的 git ls-files 列出追蹤檔，再複製到 pytest tmp_path；子命令為測試常數。
-- hash: sha256:60402ac8cc2a4890d59a26c75adeb3633f6161649f9a517f7c5bc387a6ac19b8
+- hash: sha256:7ea46646dde6ea5e762fda7f4095934dc45294ce5dec78a2674ba1d2aeab741a
   rule_id: LP3
   file: SKILL.md
   reason: "2026-10-24 隨 SkillSpector 2.12.0 審閱：上游產品規格 frontmatter 沒有 allowed-tools／permissions；AGENTS.md 規定不得覆寫產品 SKILL.md。"
@@ -219,23 +219,23 @@ fingerprints:
   rule_id: P2
   file: tests/test_sanitize_bidi_controls.py
   reason: "2026-10-24 隨 SkillSpector 2.12.0 審閱：bidi 控制字元清理功能的測試樣本：刻意放入 LRE／RLE／RLO 與反向文字攻擊範例，測試要求 sanitize_extracted_text 把它們移除。"
-- hash: sha256:809857e6ff1d20158c18d280fccc37608b066bdc57dfaefd8722c4461a8e57f2
+- hash: sha256:94582a6ae0257212293dc8c920c39993d08bce2f7257dc045335ad3cb519bedd
   rule_id: RA2
   file: SKILL.md
   reason: "2026-10-24 隨 SkillSpector 2.12.0 審閱：安裝路徑說明（把 SKILLS_HOME 設為 ~/.agents/skills），是技能落地位置的規格，不是跨 session 持久化指令。"
-- hash: sha256:ce3f4bfacaafb85f02a0e02e9dedf355921f3ef2e070c5c5caba7f6a7db5b3bc
+- hash: sha256:8bc33193da38ab17d4b30b810b31335f9db0e6439a7a6e15b48cf741fb3d054a
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：文件明確禁止推送 upstream，並要求只推 SanHsien origin；這是安全邊界說明，不是參數濫用指令。雜湊綁檔案內容，每次追加決策條目都會換。
-- hash: sha256:70930780137847aebb6a057278edb3d5968c9d1b51d96206560b39d5f131d435
+- hash: sha256:7bb573100dcaaa8b6ef3b283ffdca4f3f2b4f2c6194468fd34cf6fce389b5c05
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：同一段禁止推送 upstream 的 normalized view；沒有執行路徑，且保留此文字能防止誤推母 repo。雜湊綁檔案內容，每次追加決策條目都會換。
-- hash: sha256:eb3757b43e713620881fbe340b6dbd1219a6248ccf696e90b0f6244bee33971b
+- hash: sha256:899584206861f8b2139d6f630ae6cd085b790c18eba8c887aeb7dbeb4e1250a7
   rule_id: RP1
   file: docs/DECISIONS.md
   reason: "2026-10-24 隨 SkillSpector 2.12.0 審閱：決策紀錄在說明發布說明裡的 `npx skills` 已固定為 skills@1.5.23，本身就是鎖版的紀錄，不是要執行的未鎖版指令。"
-- hash: sha256:9ab70442f8f61cc92fe67c5d95867f94c097ae6bc8ba308ef412262bdf1d70c1
+- hash: sha256:468a293fd45f23c260a6b46bf35f8ff9ddfcb39c7e56a648fa9e481c6ab7c5ea
   rule_id: RP1
   file: docs/DECISIONS.md
   reason: "2026-10-24 隨 SkillSpector 2.12.0 審閱：決策紀錄在說明發布說明裡的 `npx skills` 已固定為 skills@1.5.23，本身就是鎖版的紀錄，不是要執行的未鎖版指令。"
@@ -252,3 +252,39 @@ fingerprints:
   rule_id: AST4
   file: tests/test_epub_utf16.py
   reason: "2026-11-02 審閱（上游 #311 cherry-pick 帶入）：測試以 shell false 的固定 argv 陣列執行本 repo 的 scripts/extract.py，輸入是測試自建的合成 EPUB，並有 60 秒 timeout，不拼接 shell。"
+- hash: sha256:2bab4ff0fcbaf95f16e53122c62915ee4474ffc9c846f2808a383154ffa64a0a
+  rule_id: AE4
+  file: tests/test_rtf_line_break.py
+  reason: "2026-11-09 審閱（上游 #313 帶入）：測試刻意含 RTF 控制字樣本與 Unicode 字元以驗證換行保留，是合成輸入，不含偽裝指令或機密。"
+- hash: sha256:7fb55ab2688fa0d533ae1d87a9d49dc191609db9ecd699bfef74ffa7381b1683
+  rule_id: AST4
+  file: tests/test_epub_container_entities.py
+  reason: "2026-11-09 審閱（上游 #317 帶入）：測試以 shell false 的固定 argv 陣列執行本 repo 的 scripts/extract.py，輸入是測試自建的合成檔，並有 timeout，不拼接 shell。"
+- hash: sha256:f4b921cbd482d63aacf611581fdb06699d5d08cdde0b64bc92e1849b3c136487
+  rule_id: AST4
+  file: tests/test_epub_xml_attribute_spacing.py
+  reason: "2026-11-09 審閱（上游 #323 帶入）：測試以 shell false 的固定 argv 陣列執行本 repo 的 scripts/extract.py，輸入是測試自建的合成檔，並有 timeout，不拼接 shell。"
+- hash: sha256:34bae16896514713d8e60f2f630686997b6fb4ae0326cb7beb7354967d14bdb3
+  rule_id: AST4
+  file: tests/test_rtf_line_break.py
+  reason: "2026-11-09 審閱（上游 #313 帶入）：測試以 shell false 的固定 argv 陣列執行本 repo 的 scripts/extract.py，輸入是測試自建的合成檔，並有 timeout，不拼接 shell。"
+- hash: sha256:c9f29758b9815410c1828c3da5860ca98464f3aa9801b05d481ea22da80e48f4
+  rule_id: AST4
+  file: tests/test_technical_epub.py
+  reason: "2026-11-09 審閱（上游 #319 帶入）：測試以 shell false 的固定 argv 陣列執行本 repo 的 scripts/extract.py，輸入是測試自建的合成檔，並有 timeout，不拼接 shell。"
+- hash: sha256:b2ef43c64fb67b9382fadaba07f8f0d1165760172cdc012c95c3ba9d7fbcd086
+  rule_id: E2
+  file: tests/test_epub_container_entities.py
+  reason: "2026-11-09 審閱（上游 #317 帶入）：測試複製 os.environ 只為了加上 BOOK_SKILL_WORKDIR 指向暫存目錄，再交給子程序執行本 repo 的 extract.py；沒有列舉、搜尋或外傳任何環境變數。"
+- hash: sha256:9dffe5a7a721cbce18b46bd04883cf2365371d8dcfb99b090ec519a1614c19f2
+  rule_id: E2
+  file: tests/test_epub_xml_attribute_spacing.py
+  reason: "2026-11-09 審閱（上游 #323 帶入）：測試複製 os.environ 只為了加上 BOOK_SKILL_WORKDIR 指向暫存目錄，再交給子程序執行本 repo 的 extract.py；沒有列舉、搜尋或外傳任何環境變數。"
+- hash: sha256:145cdb30a2142b5b95eeb9c5885bf661ef68d6a0a29c42adf328ac8a18cd736c
+  rule_id: E2
+  file: tests/test_rtf_line_break.py
+  reason: "2026-11-09 審閱（上游 #313 帶入）：測試複製 os.environ 只為了加上 BOOK_SKILL_WORKDIR 指向暫存目錄，再交給子程序執行本 repo 的 extract.py；沒有列舉、搜尋或外傳任何環境變數。"
+- hash: sha256:805f42349e31fbf8332e651891398155ebbbd78305fd38148e28c3b7d445a7ba
+  rule_id: E2
+  file: tests/test_technical_epub.py
+  reason: "2026-11-09 審閱（上游 #319 帶入）：測試複製 os.environ 只為了加上 BOOK_SKILL_WORKDIR 指向暫存目錄，再交給子程序執行本 repo 的 extract.py；沒有列舉、搜尋或外傳任何環境變數。"
