@@ -1,0 +1,10 @@
+# Constraints for the CI job test-optional-parsers (`pip install -c`).
+# pyproject.toml leaves these extras unpinned for users; CI pins them so a run
+# is reproducible and a new upstream release cannot change what CI installs
+# without a reviewed commit. Dependabot (pip, directory "/") bumps this file.
+# These are the versions the last green CI run on main (53b2bd9) installed.
+beautifulsoup4==4.15.0
+ebooklib==0.21
+pytest==9.2.0
+striprtf==0.0.35
+trafilatura==2.3.1

@@ -43,7 +43,9 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install declared optional parsers without Docling models
-        run: python -m pip install pytest -e ".[html,epub,docx,pdf,rtf]"
+        # Exact versions come from requirements-ci-parsers.txt; pyproject.toml
+        # already pins pypdf, pdfminer.six and python-docx.
+        run: python -m pip install -c requirements-ci-parsers.txt pytest -e ".[html,epub,docx,pdf,rtf]"
       - name: Require preferred parser dependencies
         run: python -c "import bs4, ebooklib, docx, trafilatura, pypdf, defusedxml"
       - name: Exercise generated preferred-parser fixtures

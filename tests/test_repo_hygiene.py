@@ -115,6 +115,41 @@ def test_optional_document_parsers_pin_reviewed_security_releases():
     assert pyproject.count('"docling==2.132.0; python_version >= \'3.10\'"') == 2
 
 
+def test_optional_parser_ci_job_installs_only_pinned_versions():
+    """Every package the optional-parser CI job installs has an exact version.
+
+    pyproject.toml leaves several extras unpinned on purpose (users get current
+    releases), so the CI job pins them with a constraints file instead. A new
+    unpinned extra must be added there, or CI silently installs whatever PyPI
+    serves that day.
+    """
+    import re
+
+    tomllib = pytest.importorskip("tomllib")  # stdlib from Python 3.11
+
+    ci =(REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    install = re.search(r"pip install -c (\S+) pytest -e \"\.\[([a-z,]+)\]\"", ci)
+    assert install, "test-optional-parsers must install with a constraints file"
+    constraints = {}
+    for line in (REPO_ROOT / install.group(1)).read_text(encoding="utf-8").splitlines():
+        line = line.split("#", 1)[0].strip()
+        if line:
+            name, _, version = line.partition("==")
+            assert version, f"constraint is not an exact pin: {line}"
+            constraints[name.strip().lower()] = version.strip()
+    assert "pytest" in constraints
+
+    extras = tomllib.loads(
+        (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    )["project"]["optional-dependencies"]
+    for group in install.group(2).split(","):
+        for requirement in extras[group]:
+            spec = requirement.split(";", 1)[0].strip()
+            if "==" in spec:
+                continue
+            assert spec.lower() in constraints, f"{spec} ({group}) is not pinned for CI"
+
+
 def test_fresh_clone_gate_uses_the_pinned_security_scanner():
     requirement = (
         "skillspector @ git+https://github.com/SanHsien/SkillSpector.git@"

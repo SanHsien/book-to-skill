@@ -647,3 +647,11 @@ StandardPdfPipeline 文字／表格／fallback 驗收，因尚無既有本機模
 **為什麼不用 rename 接手**：把鎖 rename 成墓碑再判斷，偷到別人的新鎖時要放回原位，放回前又可能有第三個執行建立鎖，等於把窄窗換個位置。OS 鎖沒有這個問題。
 
 **證據**：`test_two_runs_reclaiming_one_stale_lock_do_not_both_own_the_workdir` 在 B 判定過期之後插入 A 的回收動作；修前 `DID NOT RAISE`（A 的鎖被刪），修後通過。另以 6 個行程同時回收同一個過期鎖跑 5 輪，每輪恰好 1 個取得。
+
+## 2026-11-20：CI 的選配解析器 job 改用 constraints 檔釘版本
+
+同一次審查 H-01：`test-optional-parsers` 以 `pip install pytest -e ".[html,epub,docx,pdf,rtf]"` 安裝，`trafilatura`、`ebooklib`、`beautifulsoup4`、`striprtf`、`pytest` 沒有釘版本，CI 每次裝的是 PyPI 當天的版本。
+
+**決定**：新增 `requirements-ci-parsers.txt`，CI 以 `-c` 套用；版本取自 main 上最後一次綠燈 CI（`53b2bd9`，run 42651389101）實際安裝的版本。`pyproject.toml` 維持不釘（使用者照樣拿到現行版），已釘的 `pypdf`、`pdfminer.six`、`python-docx` 不重複列。檔名含 `requirements`，讓既有的 Dependabot pip 設定（directory `/`）每週升版，升版仍要過 CI。`tests/test_repo_hygiene.py::test_optional_parser_ci_job_installs_only_pinned_versions` 要求 job 用 constraints 檔，且 job 安裝的每個 extra 不是在 `pyproject.toml` 釘死就是在 constraints 檔釘死。
+
+**不做 hash**：本 repo 其他安裝（`requirements-security.txt` 以 git commit 釘、lint／bandit 不釘）都沒有用 `--require-hashes`，間接依賴也沒有鎖檔；這個 job 的權限是 `contents: read`、`persist-credentials: false`。只釘直接依賴，間接依賴仍會浮動。觸發條件：本 repo 引入 lockfile，或這個 job 取得寫入權限。
