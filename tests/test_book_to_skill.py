@@ -1907,6 +1907,21 @@ class TestDocxTableReconstruction:
         out = extract_docx_with_zipfile(self._make_docx(tmp_path, body))
         assert out == "First line\nSecond line\nThird line"
 
+    def test_tab_stop_definitions_are_not_emitted_as_tabs(self, tmp_path):
+        # w:pPr/w:tabs/w:tab defines tab stops and shares its tag with the run
+        # content w:r/w:tab. Word's automatic table of contents puts a
+        # right-aligned tab stop on every entry, so emitting the definitions
+        # put stray leading tabs in front of each such paragraph.
+        body = (
+            "<w:p><w:pPr><w:tabs>"
+            '<w:tab w:val="left" w:pos="720"/>'
+            '<w:tab w:val="right" w:leader="dot" w:pos="9350"/>'
+            "</w:tabs></w:pPr>"
+            "<w:r><w:t>Chapter 1</w:t><w:tab/><w:t>Intro</w:t></w:r></w:p>"
+        )
+        out = extract_docx_with_zipfile(self._make_docx(tmp_path, body))
+        assert out == "Chapter 1\tIntro"
+
     def test_empty_cell_still_tab_joined(self, tmp_path):
         body = (
             "<w:tbl><w:tr>" + self._cell("A")

@@ -7,14 +7,27 @@ from book_to_skill.exceptions import ExtractionError
 
 def _docx_inline_text(elem) -> str:
     ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+    run = f"{ns}r"
     parts = []
-    for node in elem.iter():
+    # Walk with the parent in hand: w:tab is run content only under w:r. The
+    # same tag under w:pPr/w:tabs defines a tab stop and is not text.
+    stack = [iter(elem)]
+    parents = [elem]
+    while stack:
+        node = next(stack[-1], None)
+        if node is None:
+            stack.pop()
+            parents.pop()
+            continue
+        in_run = parents[-1].tag == run
         if node.tag == f"{ns}t" and node.text:
             parts.append(node.text)
-        elif node.tag == f"{ns}tab":
+        elif node.tag == f"{ns}tab" and in_run:
             parts.append("\t")
-        elif node.tag in {f"{ns}br", f"{ns}cr"}:
+        elif node.tag in {f"{ns}br", f"{ns}cr"} and in_run:
             parts.append("\n")
+        stack.append(iter(node))
+        parents.append(node)
     return "".join(parts)
 
 
