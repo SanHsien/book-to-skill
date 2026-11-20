@@ -55,3 +55,41 @@ def test_fallback_skip_stops_at_group_end():
     # A fallback never extends past the end of the group it is in.
     raw = r"{\rtf1\ansicpg1252 {\uc2 " + _u(233) + r"\'e9}\'e9}"
     assert strip_rtf_fallback(raw) == chr(233) + chr(233)
+
+
+_GBK_PREFIX = r"{\rtf1\ansicpg936\uc2 " + _u(20013)
+
+
+@pytest.mark.parametrize(
+    "fallback",
+    [
+        "\r\n" + r"\'d6\'d0",    # line break before the fallback bytes
+        r"\'d6" + "\r\n" + r"\'d0",   # line break between them
+        r"\'d6" + "\n" + r"\'d0",
+        r"\'d6" + "\r" + r"\'d0",
+    ],
+)
+def test_line_breaks_inside_a_fallback_are_ignored(fallback):
+    # RTF ignores CR and LF in the body, so they neither count as fallback
+    # characters nor end the skip; writers wrap long lines anywhere.
+    assert strip_rtf_fallback(_GBK_PREFIX + fallback + "x}") == chr(0x4E2D) + "x"
+
+
+@pytest.mark.parametrize(
+    "fallback",
+    [
+        r"{\'d6\'d0}",         # fallback wrapped in its own group
+        r"\'d6{\'d0}",         # second byte in a nested group
+    ],
+)
+def test_fallback_continues_into_a_nested_group(fallback):
+    # Opening a group copies the reader state, pending skip included. Only the
+    # end of the group holding the \uN ends the skip.
+    assert strip_rtf_fallback(_GBK_PREFIX + fallback + "x}") == chr(0x4E2D) + "x"
+
+
+def test_uc_survives_a_nested_group_opened_inside_a_fallback():
+    # The nested group must be balanced in the \ucN scope tracking: after it
+    # closes, \uc2 still applies to the next escape.
+    raw = _GBK_PREFIX + r"{\'d6\'d0}" + _u(233) + r"\'e9\'e9!}"
+    assert strip_rtf_fallback(raw) == chr(0x4E2D) + chr(233) + "!"

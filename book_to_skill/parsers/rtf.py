@@ -22,26 +22,41 @@ def _rtf_unicode_repl(code: int) -> str:
     return chr(code)
 
 
-def _skip_unicode_fallback(raw: str, index: int, count: int) -> int:
-    r"""Return the index after the ``count`` fallback characters at ``index``.
+def _skip_unicode_fallback(raw: str, index: int, count: int) -> tuple[int, int]:
+    r"""Skip the ``count`` fallback characters at ``index``.
 
-    A fallback character is one ``\'hh`` byte or one literal character. The
-    skip never crosses a group boundary. It also stops at whitespace and at any
+    Returns the index after them and the number of groups opened on the way.
+
+    A fallback character is one ``\'hh`` byte or one literal character. CR and
+    LF are ignored, as everywhere in an RTF body: writers wrap long lines at any
+    point, so they neither count nor end the skip. Opening a group copies the
+    reader state, pending skip included, so the skip continues into it; the
+    caller must enter those groups in its own scope tracking. The end of a
+    group ends the skip. The skip also stops at other whitespace and at any
     other control word: the spec would count those too, but in practice they
     mean the writer left the fallback out, and swallowing them would lose real
     text (for example the next ``\uN`` of a surrogate pair).
     """
     length = len(raw)
+    opened = 0
     while count > 0 and index < length:
+        char = raw[index]
+        if char in "\r\n":
+            index += 1
+            continue
+        if char == "{":
+            index += 1
+            opened += 1
+            continue
         hex_byte = _RTF_HEX_BYTE.match(raw, index)
         if hex_byte:
             index = hex_byte.end()
-        elif raw[index] in "\\{}" or raw[index].isspace():
+        elif char in "\\}" or char.isspace():
             break
         else:
             index += 1
         count -= 1
-    return index
+    return index, opened
 
 
 def _decode_rtf_unicode(raw: str) -> str:
@@ -72,7 +87,8 @@ def _decode_rtf_unicode(raw: str) -> str:
             cursor = position = match.end()
             continue
         code = int(match.group(2)) % 0x10000   # RTF uses signed 16-bit; wrap negatives
-        end = _skip_unicode_fallback(raw, match.end(), skip)
+        end, opened = _skip_unicode_fallback(raw, match.end(), skip)
+        saved.extend([skip] * opened)   # groups entered inside the fallback
         if (
             pending_high is not None
             and pending_high[1] == match.start()
