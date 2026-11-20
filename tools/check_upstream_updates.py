@@ -42,7 +42,7 @@ import sys
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import TextIO
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -74,11 +74,34 @@ class UpstreamCheckError(RuntimeError):
     """Raised when the baseline or upstream Git history cannot be inspected."""
 
 
+def _inside_repo(relative: str) -> bool:
+    """True for a relative path that stays inside the repository after normalisation.
+
+    Judged on both path flavours, whatever the host OS: an absolute POSIX path, a Windows drive
+    (``C:\\x`` and drive-relative ``C:x``), a UNC share (``\\\\server\\share``) or a ``..`` that
+    climbs above the root would send verdicts to a file the fork does not version.
+    """
+    windows = PureWindowsPath(relative)
+    if windows.drive or windows.root or PurePosixPath(relative).is_absolute():
+        return False
+    depth = 0
+    for part in relative.replace("\\", "/").split("/"):
+        if part == "..":
+            depth -= 1
+            if depth < 0:
+                return False
+        elif part not in ("", "."):
+            depth += 1
+    return True
+
+
 def load_baseline(path: Path = BASELINE_PATH) -> dict:
     if not path.is_file():
         raise UpstreamCheckError(f"missing baseline file: {path}")
     try:
-        baseline = json.loads(path.read_text(encoding="utf-8"))
+        # utf-8-sig: Windows editors and PowerShell 5 `Out-File` save JSON with a BOM, which plain
+        # utf-8 hands to json.loads as a stray character -- a "bad baseline" on every run.
+        baseline = json.loads(path.read_text(encoding="utf-8-sig"))
     except (OSError, ValueError) as exc:
         raise UpstreamCheckError(f"invalid baseline file: {path}: {exc}") from exc
     if not isinstance(baseline, dict):
@@ -87,6 +110,18 @@ def load_baseline(path: Path = BASELINE_PATH) -> dict:
     missing = sorted(required - baseline.keys())
     if missing:
         raise UpstreamCheckError(f"baseline missing fields: {', '.join(missing)}")
+    repo = baseline["repo"]
+    # `repo` goes to `git fetch`/`ls-remote`: a leading "-" would be read as an option
+    # (`--upload-pack=<cmd>` runs a command), "::" selects a transport helper (`ext::<cmd>`), and
+    # whitespace or control characters are never part of a real upstream URL, path or remote name.
+    if not (
+        isinstance(repo, str)
+        and repo
+        and not repo.startswith("-")
+        and "::" not in repo
+        and not re.search(r"[\s\x00-\x1f\x7f]", repo)
+    ):
+        raise UpstreamCheckError(f"repo must be an upstream URL, path or remote name, not {repo!r}")
     if not re.fullmatch(r"[0-9a-fA-F]{40}", str(baseline["reviewed_through"])):
         raise UpstreamCheckError("reviewed_through must be a full 40-character hex SHA")
     for key in ("reviewed_pr_through", "reviewed_issue_through"):
@@ -118,6 +153,11 @@ def load_baseline(path: Path = BASELINE_PATH) -> dict:
         isinstance(heads, dict) and all(isinstance(v, str) for v in heads.values())
     ):
         raise UpstreamCheckError("reviewed_branch_heads must map branch name to head SHA")
+    decision_log = baseline.get("decision_log", DEFAULT_DECISION_LOG)
+    if not (isinstance(decision_log, str) and decision_log.strip() and _inside_repo(decision_log)):
+        raise UpstreamCheckError(
+            f"decision_log must be a path relative to the repository, not {decision_log!r}"
+        )
     monitored = baseline.get("monitored")
     if monitored is not None:
         if not isinstance(monitored, list):
@@ -128,6 +168,23 @@ def load_baseline(path: Path = BASELINE_PATH) -> dict:
             if not (item.startswith("pr#") and number.isascii() and number.isdigit()):
                 raise UpstreamCheckError(f"monitored entries need item 'pr#<number>': {entry!r}")
     return baseline
+
+
+def require_decision_log(baseline: dict, repo_dir: Path) -> None:
+    """The file every report tells the reviewer to record verdicts in must exist.
+
+    Forks keep the log in different places (``docs/DECISIONS.md``, ``docs/fork/DECISIONS.md``,
+    ``REVIEW.md``...). Guessing would pick the wrong one silently; a report pointing at a missing
+    file sends verdicts nowhere. So the default is only a default: if it is not there, the run
+    fails (exit 2) and says to set ``decision_log``.
+    """
+    decision_log = baseline.get("decision_log", DEFAULT_DECISION_LOG)
+    if not (repo_dir / decision_log).is_file():
+        source = "decision_log" if "decision_log" in baseline else "the default decision_log"
+        raise UpstreamCheckError(
+            f"decision log {decision_log} ({source}) does not exist in {repo_dir}; set "
+            '"decision_log" in the baseline to the file where this fork records upstream verdicts'
+        )
 
 
 def branch_axis_enabled(baseline: dict) -> bool:
@@ -198,7 +255,7 @@ def run_gh(args: list[str]) -> subprocess.CompletedProcess | None:
 
 def latest_upstream_release(baseline: dict, repo_dir: Path) -> tuple[str, str] | None:
     """Return the highest semver tag upstream publishes, as (tag, commit sha)."""
-    raw = run_git(["ls-remote", "--tags", baseline["repo"]], repo_dir)
+    raw = run_git(["ls-remote", "--tags", "--", baseline["repo"]], repo_dir)
     tags = parse_tag_refs(raw, str(baseline.get("release_tag_prefix", "")))
     if not tags:
         return None
@@ -210,7 +267,7 @@ def fetch_upstream(baseline: dict, repo_dir: Path) -> str:
     branch = baseline["branch"]
     ref = f"{UPSTREAM_REF_PREFIX}/{branch}"
     run_git(
-        ["fetch", "--quiet", "--no-tags", baseline["repo"], f"+refs/heads/{branch}:{ref}"],
+        ["fetch", "--quiet", "--no-tags", "--", baseline["repo"], f"+refs/heads/{branch}:{ref}"],
         repo_dir,
     )
     return ref
@@ -219,7 +276,7 @@ def fetch_upstream(baseline: dict, repo_dir: Path) -> str:
 def fetch_upstream_release(baseline: dict, repo_dir: Path, tag: str) -> str:
     ref = f"{UPSTREAM_REF_PREFIX}/tags/{tag}"
     run_git(
-        ["fetch", "--quiet", "--no-tags", baseline["repo"], f"+refs/tags/{tag}:{ref}"],
+        ["fetch", "--quiet", "--no-tags", "--", baseline["repo"], f"+refs/tags/{tag}:{ref}"],
         repo_dir,
     )
     return ref
@@ -332,7 +389,7 @@ def upstream_slug(repo: str, repo_dir: Path | None = None) -> str | None:
     if repo_dir is None or "/" in repo or ":" in repo:
         return None
     try:
-        url = run_git(["remote", "get-url", repo], repo_dir).strip()
+        url = run_git(["remote", "get-url", "--", repo], repo_dir).strip()
     except UpstreamCheckError:
         return None
     return upstream_slug(url) if url else None
@@ -461,7 +518,7 @@ def collect_branch_changes(baseline: dict, repo_dir: Path) -> list[dict]:
     """
     heads = baseline.get("reviewed_branch_heads") or {}
     registered = set(baseline.get("branches") or []) | set(heads)
-    raw = run_git(["ls-remote", "--heads", baseline["repo"]], repo_dir)
+    raw = run_git(["ls-remote", "--heads", "--", baseline["repo"]], repo_dir)
     changes = []
     seen = 0
     for line in raw.splitlines():
@@ -506,7 +563,12 @@ def collect_stale_monitored(baseline: dict, repo_dir: Path | None = None) -> lis
         if result is None:
             return None
         if result.returncode != 0:
-            if "could not resolve" in result.stderr.lower() or "not found" in result.stderr.lower():
+            # Drift only on the one answer that proves the repository was read and has no PR with
+            # this number. "Could not resolve to a Repository" (renamed, private, no access), a
+            # bare 404, a DNS error or an answer about another number say nothing about the
+            # pinned PR: "could not check", never a finding (INCIDENTS: lookup failure != absent).
+            gone = f"could not resolve to a pullrequest with the number of {number}."
+            if gone in result.stderr.lower():
                 stale.append(
                     {"item": entry["item"], "was": entry.get("head", "?"), "now": "not found"}
                 )
@@ -822,6 +884,7 @@ def gather(args: argparse.Namespace) -> Findings:
 
     findings = Findings(baseline, [])
     try:
+        require_decision_log(baseline, repo_dir)
         branch_ref = fetch_upstream(baseline, repo_dir)
         if history_rewritten(baseline["reviewed_through"], branch_ref, repo_dir):
             raise UpstreamCheckError(
