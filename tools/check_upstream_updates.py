@@ -77,9 +77,10 @@ class UpstreamCheckError(RuntimeError):
 def _inside_repo(relative: str) -> bool:
     """True for a relative path that stays inside the repository after normalisation.
 
-    Judged on both path flavours, whatever the host OS: an absolute POSIX path, a Windows drive
-    (``C:\\x`` and drive-relative ``C:x``), a UNC share (``\\\\server\\share``) or a ``..`` that
-    climbs above the root would send verdicts to a file the fork does not version.
+    Judged on both path flavours, whatever the host OS: an absolute POSIX path, a Windows path
+    with a drive letter (rooted or drive-relative), a UNC share path, or a ``..`` that climbs
+    above the root would send verdicts to a file the fork does not version. (Concrete examples
+    live in the tests; fleet repos scan sources for literal Windows and UNC paths.)
     """
     windows = PureWindowsPath(relative)
     if windows.drive or windows.root or PurePosixPath(relative).is_absolute():
