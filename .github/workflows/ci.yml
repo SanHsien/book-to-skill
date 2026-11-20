@@ -46,6 +46,10 @@ jobs:
         # Exact versions come from requirements-ci-parsers.txt; pyproject.toml
         # already pins pypdf, pdfminer.six and python-docx.
         run: python -m pip install -c requirements-ci-parsers.txt pytest -e ".[html,epub,docx,pdf,rtf]"
+      - name: Verify every installed package is pinned at the installed version
+        # -c only constrains what pip installs; a new transitive dependency
+        # missing from the constraints file would still float.
+        run: python tools/check_ci_constraints.py --extras html,epub,docx,pdf,rtf
       - name: Require preferred parser dependencies
         run: python -c "import bs4, ebooklib, docx, trafilatura, pypdf, defusedxml"
       - name: Exercise generated preferred-parser fixtures

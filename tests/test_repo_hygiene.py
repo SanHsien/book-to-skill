@@ -149,6 +149,75 @@ def _ci_constraints() -> dict[str, str]:
     return constraints
 
 
+def _unconstrained_pip_installs(run: str) -> list[str]:
+    """Each pip install command in *run* that does not use the CI constraints.
+
+    Commands are split at newlines and shell separators so one constrained
+    install cannot cover another. Tokens come from shlex with comments removed,
+    so `-c` that appears only in a trailing comment does not count, and any
+    spacing works. pip is recognised as `pip`, `pip3`, `pip3.12` or
+    `python -m pip`, with options allowed before `install`.
+    """
+    import re
+    import shlex
+
+    run = re.sub(r"\\\r?\n", " ", run)   # backslash line continuations
+    unconstrained = []
+    for command in re.split(r"\r?\n|&&|\|\||;|\|", run):
+        try:
+            tokens = shlex.split(command, comments=True)
+        except ValueError:
+            tokens = command.split()
+        for index, token in enumerate(tokens):
+            program = re.split(r"[\\/]", token)[-1].lower()
+            if not re.fullmatch(r"pip(?:3(?:\.\d+)?)?(?:\.exe)?", program):
+                continue
+            arguments = tokens[index + 1:]
+            if "install" not in arguments:
+                continue
+            constrained = any(
+                (argument in ("-c", "--constraint") and following == _CI_CONSTRAINTS)
+                or argument in (f"-c{_CI_CONSTRAINTS}", f"--constraint={_CI_CONSTRAINTS}")
+                for argument, following in zip(arguments, arguments[1:] + [""])
+            )
+            if not constrained:
+                unconstrained.append(command.strip())
+            break
+    return unconstrained
+
+
+@pytest.mark.parametrize(
+    "run",
+    [
+        "pip3 install lxml",
+        "python -m pip -q install lxml",
+        "pip --disable-pip-version-check install lxml",
+        "pip   install   lxml",
+        "pip install lxml  # -c requirements-ci-parsers.txt",
+        "pip install -c other-constraints.txt lxml",
+        "echo ready && pip install lxml",
+        "python -m pip install -c requirements-ci-parsers.txt pytest\npip install lxml",
+        "/usr/bin/pip3.12 install lxml",
+    ],
+)
+def test_pip_install_guard_catches_unconstrained_variants(run):
+    assert _unconstrained_pip_installs(run), run
+
+
+@pytest.mark.parametrize(
+    "run",
+    [
+        'python -m pip install -c requirements-ci-parsers.txt pytest -e ".[pdf]"',
+        "pip3 -q install --constraint requirements-ci-parsers.txt lxml",
+        "pip install --constraint=requirements-ci-parsers.txt lxml",
+        "pip install \\\n  -c   requirements-ci-parsers.txt lxml",
+        "python -c \"import bs4\"",   # -c of python, not pip, and no install
+    ],
+)
+def test_pip_install_guard_accepts_constrained_installs(run):
+    assert _unconstrained_pip_installs(run) == [], run
+
+
 def test_every_pip_install_in_the_optional_parser_job_is_constrained():
     """No pip install in that job may run without the constraints file.
 
@@ -158,20 +227,11 @@ def test_every_pip_install_in_the_optional_parser_job_is_constrained():
     workflow = yaml.safe_load(
         (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     )
-    import re
-
     steps = workflow["jobs"][_OPTIONAL_PARSER_JOB]["steps"]
-    # One command per line or per shell separator, so a constrained install
-    # cannot cover an unconstrained one in the same step.
-    installs = [
-        command
-        for step in steps
-        for command in re.split(r"\n|&&|\|\||;", step.get("run", ""))
-        if "pip install" in command
-    ]
-    assert installs, f"{_OPTIONAL_PARSER_JOB} installs nothing"
-    for command in installs:
-        assert f"-c {_CI_CONSTRAINTS}" in command, f"unconstrained install: {command}"
+    runs = [step.get("run", "") for step in steps]
+    assert any("install" in run for run in runs), f"{_OPTIONAL_PARSER_JOB} installs nothing"
+    unconstrained = [command for run in runs for command in _unconstrained_pip_installs(run)]
+    assert unconstrained == [], f"unconstrained install(s): {unconstrained}"
 
 
 def test_optional_parser_ci_job_pins_its_whole_dependency_tree():
