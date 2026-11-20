@@ -227,19 +227,19 @@ fingerprints:
   rule_id: RA2
   file: SKILL.md
   reason: "2026-10-24 隨 SkillSpector 2.12.0 審閱：安裝路徑說明（把 SKILLS_HOME 設為 ~/.agents/skills），是技能落地位置的規格，不是跨 session 持久化指令。"
-- hash: sha256:ed4efe4fb715980ba4f233126540c785df40bcab3e5ff899c09e238259421698
+- hash: sha256:7b4be47d505bcbd0187b3736d8c30a8213750f9708dc759a54a0b4fb5298cfaf
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：文件明確禁止推送 upstream，並要求只推 SanHsien origin；這是安全邊界說明，不是參數濫用指令。雜湊綁檔案內容，每次追加決策條目都會換。
-- hash: sha256:5244b47ab684df9cec8f0e377127a3d80f44cb8a541353e4a7e156ffa32e6bfe
+- hash: sha256:0fcb4bddcc1726353b71df688989bd043baa6e192c2fd4200dde4d729dd4e5e3
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：同一段禁止推送 upstream 的 normalized view；沒有執行路徑，且保留此文字能防止誤推母 repo。雜湊綁檔案內容，每次追加決策條目都會換。
-- hash: sha256:eef42d38b17c71ac089be61e2dc844d4ed467bc2013616870f865bc7ea515348
+- hash: sha256:5e5842d8066f3d08b43df094396a3ab4527233299987794508b79c3b2b3b2d3c
   rule_id: RP1
   file: docs/DECISIONS.md
   reason: "2026-10-24 隨 SkillSpector 2.12.0 審閱：決策紀錄在說明發布說明裡的 `npx skills` 已固定為 skills@1.5.23，本身就是鎖版的紀錄，不是要執行的未鎖版指令。"
-- hash: sha256:a1aceccfb9721e51d2a198e18b941c5a8237bc59814deda19159efdbb1834d47
+- hash: sha256:895841b1a215e8c22a360045e2a45e50879147bdc79643244118410f49f7fb07
   rule_id: RP1
   file: docs/DECISIONS.md
   reason: "2026-10-24 隨 SkillSpector 2.12.0 審閱：決策紀錄在說明發布說明裡的 `npx skills` 已固定為 skills@1.5.23，本身就是鎖版的紀錄，不是要執行的未鎖版指令。"
