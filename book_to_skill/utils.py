@@ -542,7 +542,7 @@ _NON_CHAPTER_HEADERS = frozenset((*_FRONT_MATTER_HEADERS, *_BACK_MATTER_HEADERS)
 
 _NON_CHAPTER_PREFIX = re.compile(r"^(?:appendix|appendices)\b", re.IGNORECASE)
 
-_PART_HEADER = re.compile(r"^part\s+(?:\d+|[ivxlcdm]+)\b", re.IGNORECASE)
+_PART_HEADER = re.compile(r"^part\s+(\d+|[ivxlcdm]+)\b", re.IGNORECASE)
 
 def _is_non_chapter_section(title: str) -> bool:
     """Return whether *title* is conventional book framing, not a chapter."""
@@ -912,7 +912,9 @@ def detect_structure(text: str) -> dict:
         title = _MD_HEADING_PREFIX.sub("", s)
         part = _PART_HEADER.match(title)
         if part:
-            numeral = title.split()[1].rstrip(":.-")
+            # The captured numeral, not split()[1]: "Part 1:Basics" has no space
+            # after the colon.
+            numeral = part.group(1)
             number = int(numeral) if numeral.isdigit() else _roman_to_int(numeral.upper())
             if number is not None:
                 part_numbers.add(number)

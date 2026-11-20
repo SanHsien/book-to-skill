@@ -50,6 +50,18 @@ def test_part_only_plain_text_book_keeps_numeric_fallback():
     ]
 
 
+@pytest.mark.parametrize("separator", [":", ".", "-"])
+def test_part_number_is_read_when_no_space_follows_the_separator(separator):
+    # "Part 1:Basics".split()[1] is "1:Basics", which is neither a number nor a
+    # Roman numeral, so a Part-only book used to report 0 chapters.
+    result = detect_structure(
+        f"Part 1{separator}Basics\nBody.\n\nPart II{separator}Practice\nBody."
+    )
+
+    assert result["chapters_detected"] == 2
+    assert result["chapters_method"] == "numeric"
+
+
 def test_instructional_titles_beginning_with_part_are_chapters():
     titles = ["Part of Speech", "Part of a Whole", "Partnership Models"]
     text = "\n\n".join(f"## {title}\nSynthetic chapter body." for title in titles)
