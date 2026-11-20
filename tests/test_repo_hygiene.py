@@ -115,39 +115,130 @@ def test_optional_document_parsers_pin_reviewed_security_releases():
     assert pyproject.count('"docling==2.132.0; python_version >= \'3.10\'"') == 2
 
 
-def test_optional_parser_ci_job_installs_only_pinned_versions():
-    """Every package the optional-parser CI job installs has an exact version.
+_OPTIONAL_PARSER_JOB = "test-optional-parsers"
+_CI_CONSTRAINTS = "requirements-ci-parsers.txt"
+# The job runs on ubuntu-latest with Python 3.12; dependency markers are judged
+# for that platform, not for the machine running this test.
+_CI_MARKER_ENVIRONMENT = {
+    "extra": "",
+    "os_name": "posix",
+    "sys_platform": "linux",
+    "platform_system": "Linux",
+    "platform_machine": "x86_64",
+    "platform_python_implementation": "CPython",
+    "implementation_name": "cpython",
+    "python_version": "3.12",
+    "python_full_version": "3.12.0",
+}
 
-    pyproject.toml leaves several extras unpinned on purpose (users get current
-    releases), so the CI job pins them with a constraints file instead. A new
-    unpinned extra must be added there, or CI silently installs whatever PyPI
-    serves that day.
+
+def _canonical(name: str) -> str:
+    import re
+
+    return re.sub(r"[-_.]+", "-", name).lower()
+
+
+def _ci_constraints() -> dict[str, str]:
+    constraints = {}
+    for line in (REPO_ROOT / _CI_CONSTRAINTS).read_text(encoding="utf-8").splitlines():
+        line = line.split("#", 1)[0].strip()
+        if line:
+            name, _, version = line.partition("==")
+            assert version.strip(), f"constraint is not an exact pin: {line}"
+            constraints[_canonical(name.strip())] = version.strip()
+    return constraints
+
+
+def test_every_pip_install_in_the_optional_parser_job_is_constrained():
+    """No pip install in that job may run without the constraints file.
+
+    Checking one known install line is not enough: a second `pip install` step
+    added later would install whatever PyPI serves that day.
+    """
+    workflow = yaml.safe_load(
+        (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    )
+    import re
+
+    steps = workflow["jobs"][_OPTIONAL_PARSER_JOB]["steps"]
+    # One command per line or per shell separator, so a constrained install
+    # cannot cover an unconstrained one in the same step.
+    installs = [
+        command
+        for step in steps
+        for command in re.split(r"\n|&&|\|\||;", step.get("run", ""))
+        if "pip install" in command
+    ]
+    assert installs, f"{_OPTIONAL_PARSER_JOB} installs nothing"
+    for command in installs:
+        assert f"-c {_CI_CONSTRAINTS}" in command, f"unconstrained install: {command}"
+
+
+def test_optional_parser_ci_job_pins_its_whole_dependency_tree():
+    """Every package that job resolves has an exact version.
+
+    That covers the base dependency (defusedxml), each extra the job installs,
+    pytest, and their transitive dependencies such as lxml, which parses the
+    untrusted HTML and EPUB input. Transitive requirements are read from the
+    installed distributions, so they are checked only where those are installed
+    (the local .venv with the extras); the direct ones are checked everywhere.
     """
     import re
 
     tomllib = pytest.importorskip("tomllib")  # stdlib from Python 3.11
 
-    ci =(REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-    install = re.search(r"pip install -c (\S+) pytest -e \"\.\[([a-z,]+)\]\"", ci)
-    assert install, "test-optional-parsers must install with a constraints file"
-    constraints = {}
-    for line in (REPO_ROOT / install.group(1)).read_text(encoding="utf-8").splitlines():
-        line = line.split("#", 1)[0].strip()
-        if line:
-            name, _, version = line.partition("==")
-            assert version, f"constraint is not an exact pin: {line}"
-            constraints[name.strip().lower()] = version.strip()
-    assert "pytest" in constraints
+    workflow = (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    groups = re.search(r'-e "\.\[([a-z,]+)\]"', workflow)
+    assert groups, f"{_OPTIONAL_PARSER_JOB} must install the extras it tests"
+    project = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))[
+        "project"
+    ]
+    constraints = _ci_constraints()
 
-    extras = tomllib.loads(
-        (REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    )["project"]["optional-dependencies"]
-    for group in install.group(2).split(","):
-        for requirement in extras[group]:
-            spec = requirement.split(";", 1)[0].strip()
-            if "==" in spec:
+    direct = ["pytest", *project.get("dependencies", [])]
+    for group in groups.group(1).split(","):
+        direct.extend(project["optional-dependencies"][group])
+    pinned_in_pyproject = set()
+    pinned_versions = dict(constraints)
+    pending = []
+    for requirement in direct:
+        spec = requirement.split(";", 1)[0].strip()
+        name = _canonical(re.split(r"[<>=!~\[ ]", spec, maxsplit=1)[0])
+        if "==" in spec:
+            pinned_in_pyproject.add(name)
+            pinned_versions[name] = spec.split("==", 1)[1].strip()
+        else:
+            assert name in constraints, f"{spec} is not pinned for CI"
+        pending.append(name)
+
+    packaging_requirements = pytest.importorskip("packaging.requirements")
+    from importlib import metadata
+
+    seen = set()
+    while pending:
+        name = pending.pop()
+        if name in seen:
+            continue
+        seen.add(name)
+        try:
+            distribution = metadata.distribution(name)
+        except metadata.PackageNotFoundError:
+            continue
+        if distribution.version != pinned_versions.get(name):
+            # Another version's requirements say nothing about the pinned one.
+            continue
+        requires = distribution.requires or []
+        for raw in requires:
+            requirement = packaging_requirements.Requirement(raw)
+            if requirement.marker and not requirement.marker.evaluate(
+                _CI_MARKER_ENVIRONMENT
+            ):
                 continue
-            assert spec.lower() in constraints, f"{spec} ({group}) is not pinned for CI"
+            dependency = _canonical(requirement.name)
+            assert dependency in constraints or dependency in pinned_in_pyproject, (
+                f"{dependency} (required by {name}) is not pinned for CI"
+            )
+            pending.append(dependency)
 
 
 def test_fresh_clone_gate_uses_the_pinned_security_scanner():
