@@ -1,93 +1,56 @@
 # Repository review（Windows-first）
 
-- Review date: 2026-08-22
-- Review baseline: `8a710a3385fac7062820d41a024d7925cfc3c20a`
-- Fix branch: `fix/review-findings`（本輪關閉可修 findings，不回貢）
-- Upstream reviewed through: `3a97a7115ab3c82edf47f315b544fbcefdd8559c`
+- Review date: 2026-11-20
+- Review range: `2b2e787..53b2bd9`（51 commits，增量審查）
+- Previous review baseline: `8a710a3`（2026-08-22）。那是重設歷史前的 commit，**不是** `main` 的祖先：`2b2e787`（2026-09-27 `release: initialize clean repository v1.0.0`）是新的根 commit，沒有 parent，樹內已含 `8a710a3` 的內容與上一輪 R-01～R-08 的修正（`git diff --stat 8a710a3 2b2e787`：66 檔）。所以本輪從 `2b2e787` 起算，舊檔頭寫的 `8a710a3` 只對上一輪成立。
+- Fix status as of: 2026-11-20，`main` 本機 commit（尚未 push）
 - Primary environment: Windows 11、PowerShell、Python 3.14（本機）、CI Windows 3.12 / Ubuntu 3.9–3.13
-- Status: 可修 findings 已關；產品抽取器仍不回貢；官方仍是上游 `virgiliojr94/book-to-skill`
+- Status: 本輪 3 筆 confirmed 與 2 筆 hardening 全部已修；產品抽取器仍不回貢；官方仍是上游 `virgiliojr94/book-to-skill`
 
 ## 結論
 
-這個 fork 適合作為 Windows 本機把書轉成 Agent 技能的維護線。抽取器沒有 `shell=True` / `eval` / `exec` / `pickle`，`--install-missing` 只會裝白名單套件，輸出目錄會拒絕 symlink。
+範圍內沒有新的高風險問題。3 筆 confirmed 都是抽取品質或並行安全的缺陷，觸發條件窄，但都會在沒有任何警告的情況下污染輸出，所以全部修掉，每筆都先補了在舊碼上會紅的測試。
 
-本輪已在 fork 內修好 R-01～R-05、R-07、R-08（R-06 先前已關）。剩餘風險是能力邊界，不是未修的程式 finding：
+## Findings
 
-1. `--mode technical`（docling）仍**沒有**本機實跑，只加了外連警示。
-2. 沒有真實書籍端到端轉換。
-3. 不把 fork 當成第二個官方 repo。
+| ID | 類別 | Finding | 修正 commit | 日期 | 測試（修前紅、修後綠） |
+|---|---|---|---|---|---|
+| F-01 | confirmed | `claim_workdir` 回收過期鎖有競態：B 判定過期後、刪除前，A 已回收並寫好自己的 PID；B 的 `unlink` 刪掉 A 的有效鎖，兩個執行同時持有工作目錄。Windows 上一樣會發生（A 已關閉 handle），`docs/DECISIONS.md` 原本寫「Windows 上無法刪」不對。 | `8b3e0e5` | 2026-11-20 | `tests/test_workdir_lock.py::test_two_runs_reclaiming_one_stale_lock_do_not_both_own_the_workdir`（修前 `DID NOT RAISE`）。另以 6 個行程同時回收同一過期鎖跑 5 輪，每輪恰好 1 個取得。 |
+| F-02 | confirmed | RTF 後備解析器只吞 `\uN` 後的一個 fallback 位元組；`\uc2` 時第二個位元組被 hex-run 解碼成亂碼（cp932 出現 PUA／半形片假名，cp936 出現 U+FFFD）。 | `99cf27f` | 2026-11-20 | `tests/test_rtf_unicode_skip_count.py`：`test_uc2_skips_both_fallback_bytes`（3 例）、`test_uc_is_scoped_to_its_group` 修前 4 紅；`test_uc0_skips_nothing`、`test_fallback_skip_stops_at_group_end` 為護欄。 |
+| F-03 | confirmed | DOCX zip 解析器把段落定位點定義（`w:pPr/w:tabs/w:tab`）當成 Tab 輸出；有自動目錄的 docx 會整份走這條路，目錄段落多出開頭 Tab。 | `3930f7d` | 2026-11-20 | `tests/test_book_to_skill.py::TestDocxTableReconstruction::test_tab_stop_definitions_are_not_emitted_as_tabs`（修前得到 `'\t\tChapter 1\tIntro'`）。 |
+| H-01 | hardening | CI job `test-optional-parsers` 安裝 `trafilatura`、`ebooklib`、`beautifulsoup4`、`striprtf`、`pytest` 時沒有釘版本。 | `ef240d3` | 2026-11-20 | `tests/test_repo_hygiene.py::test_optional_parser_ci_job_installs_only_pinned_versions`（還原 `ci.yml` 時紅）。只釘直接依賴、不做 hash：本 repo 其他安裝也沒有用 hash，理由與觸發條件見 `docs/DECISIONS.md` 2026-11-20。 |
+| H-02 | hardening | `detect_structure` 以 `split()[1]` 取 Part 編號，`Part 1:Basics` 取到 `1:Basics`，Part-only 文件回報 0 章。 | `46c739d` | 2026-11-20 | `tests/test_part_chapter_count.py::test_part_number_is_read_when_no_space_follows_the_separator`（`:`、`.`、`-` 三例修前紅）。 |
 
-惡意仿冒見上游 [`SECURITY-NOTICE.md`](SECURITY-NOTICE.md)；本線是標明來源的 MIT 維護 fork。
+上一輪（baseline `8a710a3`）的 R-01～R-08 已在重設歷史前全部關閉，修正內容包含在根 commit `2b2e787` 中；細節見該輪的 `REVIEW.md`（`git show 2b2e787:REVIEW.md`）。
 
 ## 本輪實證
 
-### 本機（`fix/review-findings`）
+本機（Windows 11、`.venv` Python 3.14，已裝 `pdf`／`epub`／`docx`／`rtf`／`html` extra）：
 
 ```text
 pwsh -NoProfile -File tools\dev_check.ps1
-→ compileall / ruff E9+F / pytest / validate_skill 全綠
-→ 495 passed, 8 skipped
-→ SKILL.md：無 Claude Code-breaking issues（1 soft warning：712 行 > 500）
-
-python -m bandit -q -r book_to_skill scripts tools --severity-level high --confidence-level medium
-→ exit 0（High = 0）
-
-python -m bandit -q -r book_to_skill scripts tools -ll
-→ exit 0（Medium+ = 0；B314 已消失）
+→ compileall / ruff E9+F / pytest / validate_skill / SkillSpector 自我掃描 全綠
+→ 864 passed, 8 skipped, 17 subtests passed
+→ SKILL.md：無 Claude Code-breaking issues（1 soft warning：787 行 > 500）
 ```
 
-Windows skip（8）：POSIX `chmod` 語意、本機未開 Developer Mode 時無法建 directory symlink（WinError 1314）、以及 POSIX 工作目錄測試（Windows 無法實例化 `PosixPath`）。
-
-### GitHub Actions（`8a710a3` push，修 finding 前）
-
-| Workflow | 結果 | 說明 |
-|---|---|---|
-| [CI](https://github.com/SanHsien/book-to-skill/actions/runs/32551914676) | success | Ubuntu 3.9–3.13、Windows py3.12、lint、smoke、bandit、validate SKILL.md 全綠 |
-| [Deploy docs](https://github.com/SanHsien/book-to-skill/actions/runs/32551914603) | success | MkDocs **build** 通過；`Deploy to gh-pages` **skipped** |
-| [CodeQL](https://github.com/SanHsien/book-to-skill/actions/runs/32551914623) | success | |
-| [Upstream check](https://github.com/SanHsien/book-to-skill/actions/runs/32551914669) | success | |
-| [Dependency freshness](https://github.com/SanHsien/book-to-skill/actions/runs/32551914639) | success | |
-
-`git ls-files` 無 `.pdf` / `.epub` / `.mobi` / `full_text.txt` / `.env`。本輪另以 `git check-ignore` 確認 `book.pdf` 與根目錄 `full_text.txt` 會被忽略。
-
-## 已關閉 findings
-
-| ID | 嚴重度 | 原 finding | 關閉方式 |
-|---|---|---|---|
-| R-01 | P2 | Windows 預設 `%TEMP%\book_skill_work`，多使用者可預測。 | `default_output_dir()`：Windows 改 `%LOCALAPPDATA%\book-to-skill\work`；`BOOK_SKILL_WORKDIR` 仍優先。POSIX 不變。見 `tests/test_default_workdir.py`。 |
-| R-02 | P2 | `--mode technical` / docling 可能外連，文件寫完全離線。 | stderr 警示、README / SECURITY / SKILL.md 寫明首次可能下載模型。**未**實跑 docling，不宣稱已離線驗證。 |
-| R-03 | P2 | `.gitignore` 不擋電子書／產出。 | 加入 `*.pdf` `*.epub` `*.mobi` `*.azw` `*.azw3` `/full_text.txt` `/metadata.json`；`test_repo_hygiene.py` 閘 pattern 與 `git check-ignore`。 |
-| R-04 | P2 | `CONTRIBUTING.md` / `docs/install.md` 全指上游。 | 標明 SanHsien fork vs 上游產品安裝；PowerShell clone 與 pip 預設本線。 |
-| R-05 | P2 | Bandit B314：`ElementTree.fromstring` 解析 DOCX。 | zipfile 路徑改 `defusedxml`（必要依賴）；缺套件直接 `ExtractionError`，不回退 stdlib。Bandit `-ll` 現為 0。 |
-| R-06 | P3 | `README.ru.md` 與繁中主檔衝突。 | 已刪；公開入口只留繁中／英文。 |
-| R-07 | P3 | 英文 README 沒有本 fork CI badge。 | `README.en.md` 加上 SanHsien CI；上游 release badge 改標 Upstream。 |
-| R-08 | P3 | `codeql.yml` pin tag 而非 SHA。 | checkout `3d3c42e…`（v7.0.1）、codeql-action `db488dd…`（v4.37.8）；`persist-credentials: false`。 |
+SkillSpector 的精確指紋綁檔案內容，本輪改了 `docs/DECISIONS.md`、`tests/test_book_to_skill.py`、`tests/test_workdir_lock.py`，所以這三檔已審過的 8 筆指紋換新雜湊、理由不變；`tests/test_workdir_lock.py` 新增的競態測試多啟動一個固定的 30 秒子程序，多一筆同理由的 AST4。
 
 ## 已檢查、不列為 finding
 
-- 全套件無 `os.system`、`shell=True`、`eval(`、`exec(`、`pickle`。`subprocess.run` 皆 argv 列表。
-- `--install-missing` 的套件名只來自 `PYTHON_DEPENDENCIES` 白名單。CLI 下一個參數是 `yes/no/ask`，不會 `pip install <任意字串>`。
-- 預設不安裝：`BOOK_SKILL_INSTALL_MISSING` 預設 `ask`；非 TTY 不會自動 pip。
-- EPUB／DOCX 用記憶體 `ZipFile.read`，未 `extractall`。
-- HTML：`trafilatura.extract` 吃本地字串，不是 URL fetch。
-- 產品 `SKILL.md` 仍是轉換器規格；`AGENTS.md` / `CLAUDE.md` 分開且禁止覆寫。
-- `deploy-docs.yml` 的 `github.repository == 'virgiliojr94/book-to-skill'` 已在本 fork 的實際 run 上 skip deploy。
-- Sponsor、use-cases、惡意仿冒警告維持指向上游，符合 `NOTICE.md`。
-- Dependabot 不自動合併（`docs/DECISIONS.md`），合理。
-- 本 fork 不自製 GitHub Release；`pyproject.toml` `1.4.0` 是上游產品版本。
+- `sanitize_extracted_text` 的 ASCII 快速路徑：0–127 沒有碼位被判為不可見，行為與舊版等價；`_KANGXI_RADICAL_FOLD` 224 個映射皆一對一。
+- `read_text_file` 遇 BOM 後資料損壞回 `None`，呼叫端（html、rtf、utils）都當失敗處理。
+- `extract_with_docling` 改為往外丟例外：唯一呼叫端以 `except Exception` 接住並記 `fallback_reason = docling_failed`。
+- EPUB：`../` 只影響 ZIP 成員名稱，一律經 `zf.read`；container 的 XML 參照只解預定義實體與合法碼位；UTF-16 偵測排除 UTF-32 LE。
+- `text_from_soup`：`&`、`<` 經轉義再還原，script／style／head 事先移除。
+- `tools/check_skillspector_report.py` 的 `reviewed_partials` 綁檔案 SHA-256，未涵蓋的 static 例外 fail closed；`tools/run_skillspector.py` 暫存 baseline 在 `finally` 刪除。
+- `tools/check_upstream_updates.py`：子程序皆 argv 列表；`gh` 失敗回 `None` 並以 exit 2 表示未檢查；上游標題轉義 `|` 後才寫入 step summary。
+- `validate_skill.get_scalar` 的 block scalar 讀取邊界正確；`extract_with_ebooklib` 依 spine 排序去重，spine 以外的文件附在最後。
 
 ## 尚未宣稱範圍
 
-- **沒有**用真實購買的 PDF／EPUB／DOCX／掃描書做端到端轉換；閘門是單元測試 + Markdown smoke（Ubuntu CI）+ 本機無書檔抽取。
-- **沒有**驗證 OCR、docling technical、Poppler `pdftotext` 在這台機器上的品質。R-02 只保證有警告，不保證離線。
-- **沒有**獨立 Windows 格式樣本矩陣；Windows job 跑的是與 `dev_check.ps1` 相同的 gate（CI 不安 extra）。
-- `dev_check.ps1` **不含** bandit、MkDocs build、dependency-review。那些只在 GitHub Ubuntu jobs。
-- **不宣稱** fork 托管官方文件站；`mkdocs.yml` / `docs/CNAME` 仍是 `booktoskill.is-a.dev`。
-- `python-docx` 路徑仍走 `python-docx`（有裝 extra 時）；B314 關的是 stdlib zipfile 解析。
-- 產生技能目錄（`~/.claude/skills/<slug>/` 等）不在本 repo 工作樹，未掃描是否含原文。
-
-## 建議下一步（未動手）
-
-1. 有真實技術書再決定要不要裝 `docling`，並記錄是否外連。
-2. 需要時再裝 Poppler，做文字 PDF 對照。
-3. 這些修正不送上游。
+- **沒有**用真實 Word 產生的 `\uc2` RTF 與帶自動目錄的 docx 驗證 F-02、F-03；測試用的是手工合成的最小輸入。
+- **沒有**實跑 `--mode technical`／Docling（本機沒有模型）。
+- **沒有**看到本輪 commit 在 GitHub Actions 上的結果（尚未 push）；H-01 的 constraints 檔要等 CI 實跑才算驗證到 job 本身。
+- **沒有**對 `check_upstream_updates.py` 做實際網路執行。
+- 產生的技能目錄不在本 repo 工作樹，未掃描是否含原文。
