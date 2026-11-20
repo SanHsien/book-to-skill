@@ -210,6 +210,47 @@ def test_claim_loses_race_when_another_run_locks_between_check_and_write(
         holder.wait(timeout=10)
 
 
+def test_two_runs_reclaiming_one_stale_lock_do_not_both_own_the_workdir(
+    tmp_path, monkeypatch
+):
+    """Reclaiming a stale lock must not delete a lock another run just took.
+
+    Run B finds a stale lock and decides to delete it. Before B deletes it, run A
+    reclaims the same stale lock: A removes it, creates its own and writes its
+    PID. B's delete then removed A's valid lock and B took the workdir too, so both
+    runs wrote full_text.txt. This happened on Windows as well: A has already
+    closed its handle, so nothing stops the delete.
+
+    The hook runs A's reclaim right after B's first holder check that follows the
+    failed exclusive create, which is where B has judged the lock stale.
+    """
+    wd = tmp_path / "work"
+    wd.mkdir()
+    lock = wd / _WORKDIR_LOCK_NAME
+    lock.write_text(str(_find_unused_pid()), encoding="utf-8")
+    run_a = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(30)"])
+    real_holder_pid = utils._lock_holder_pid
+    calls = []
+
+    def run_a_reclaims_after_b_judged_stale(path):
+        result = real_holder_pid(path)
+        calls.append(result)
+        if len(calls) == 2:
+            assert result is None, "B must have judged the lock stale"
+            path.unlink()
+            path.write_text(str(run_a.pid), encoding="utf-8")
+        return result
+
+    monkeypatch.setattr(utils, "_lock_holder_pid", run_a_reclaims_after_b_judged_stale)
+    try:
+        with pytest.raises(ExtractionError, match="already in use"):
+            claim_workdir(wd)
+        assert lock.read_text().strip() == str(run_a.pid), "A's lock was deleted"
+    finally:
+        run_a.terminate()
+        run_a.wait(timeout=10)
+
+
 def test_claim_waits_for_a_lock_that_is_created_but_not_yet_written(
     tmp_path, monkeypatch
 ):

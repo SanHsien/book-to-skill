@@ -484,7 +484,7 @@ PDF 的 model-free NativePdfPipeline 回報 backend parse failure，尚未區分
 
 ## 2026-10-26：第二輪深度掃描——`claim_workdir` 競態已修，上游原有缺陷列入觀察清單
 
-**已修**：`claim_workdir`（fork 自有，採自上游 PR #126 的概念）先檢查持有者、再寫鎖檔，兩個同時啟動的抽取會都看到「無鎖」，後寫者靜默覆蓋 `full_text.txt`。改以 `O_EXCL` 獨占建立鎖檔；失敗時重讀持有者，活著就拒絕，過期或自己的鎖才清除重試。重現測試 `test_claim_loses_race_when_another_run_locks_between_check_and_write`。獨占建立的檔案先是空的、之後才寫 PID，所以剛建立的空鎖在 `_LOCK_SETTLE_SECONDS`（2 秒）內視為宣告中並等待，不當成過期鎖刪除（否則會刪到勝出者的有效鎖，Windows 上則拋 PermissionError），測試 `test_claim_waits_for_a_lock_that_is_created_but_not_yet_written`。仍有的窄窗：兩個執行同時回收同一個過期鎖時，後者可能刪到前者剛建的空鎖（主要在 POSIX；Windows 上檔案開著無法刪）；完全封閉需要 rename 式原子接手或 OS 檔案鎖，列入觀察。
+**已修**：`claim_workdir`（fork 自有，採自上游 PR #126 的概念）先檢查持有者、再寫鎖檔，兩個同時啟動的抽取會都看到「無鎖」，後寫者靜默覆蓋 `full_text.txt`。改以 `O_EXCL` 獨占建立鎖檔；失敗時重讀持有者，活著就拒絕，過期或自己的鎖才清除重試。重現測試 `test_claim_loses_race_when_another_run_locks_between_check_and_write`。獨占建立的檔案先是空的、之後才寫 PID，所以剛建立的空鎖在 `_LOCK_SETTLE_SECONDS`（2 秒）內視為宣告中並等待，不當成過期鎖刪除（否則會刪到勝出者的有效鎖，Windows 上則拋 PermissionError），測試 `test_claim_waits_for_a_lock_that_is_created_but_not_yet_written`。仍有的窄窗：兩個執行同時回收同一個過期鎖時，後者可能刪到前者剛建好的鎖。（2026-11-20 更正：原文寫「主要在 POSIX；Windows 上檔案開著無法刪」不對。前者寫完 PID 就關閉 handle，Windows 上一樣刪得掉，被刪的也不只是空鎖，而是已寫入 PID 的有效鎖，結果兩個執行同時持有工作目錄；已在 Windows 重現。已改用 OS 檔案鎖修好，見下方 2026-11-20 一節。）
 
 **觀察清單（上游原有，不改）**：
 - `parse_arguments` 與 `normalize_install_mode`：`--install-missing` 後面只要不是 `--` 開頭就被當成值吞掉，所以 `extract.py --install-missing book.pdf` 會把 `book.pdf` 當成模式（落回 `ask`），輸入檔消失而報「No input document」。`SKILL.md` 的標準呼叫把 `--install-missing ask` 放在最後，不受影響。觸發條件：上游修掉，或本 fork 的呼叫端改成把旗標放在檔名之前。
@@ -637,3 +637,13 @@ StandardPdfPipeline 文字／表格／fallback 驗收，因尚無既有本機模
 | [#329](https://github.com/virgiliojr94/book-to-skill/pull/329)（dependabot，head `0a6221e4`，+2／−2，1 檔） | 不採用 | 只動上游 `codeql.yml`，`codeql-action` 4.39.1 → 4.39.3。本 fork 的 workflow 自持、由自己的 Dependabot 升版；沿用 #198／#213／#226／#303 的判斷 |
 
 **水位**：commit 推到 `e7bb659`、PR 到 331、issue 到 330。`monitored` 移除已處理的 #313、#315、#317、#319，改釘 #325、#327、#331（三筆皆 open，各為上述延後項的觸發來源）。
+
+## 2026-11-20：`claim_workdir` 回收過期鎖改由 OS 檔案鎖序列化
+
+2026-11-20 增量審查（`2b2e787..53b2bd9`）F-01：兩個執行同時回收同一個過期鎖時，B 讀到過期 PID、判定可刪；A 刪掉過期鎖、獨占建立新鎖、寫入 PID 並關閉 handle；B 接著 `unlink`，刪掉的是 A 的有效鎖，下一輪自己也建立成功，兩個執行同時寫 `full_text.txt`。Windows 上同樣會發生（2026-10-26 那一節原本的說法已更正）。
+
+**做法**：新增 `_reclaim_guard`，對工作目錄裡的 `.extract.lock.guard` 取 OS 檔案鎖（Windows `msvcrt.locking`、POSIX `fcntl.flock`）。建立鎖檔（`O_EXCL` 加寫入 PID）與刪除過期鎖都在 guard 內進行，刪除前在 guard 內重讀一次持有者。OS 會在持有者結束時釋放鎖，所以 guard 不會像鎖檔那樣留下過期狀態；guard 檔本身不刪除。在 guard 內建立的鎖一定寫好 PID 才釋放 guard，所以 guard 內讀不到「剛建立的空鎖」；空鎖只會來自寫到一半當掉的執行或舊版，仍沿用 2 秒等待。
+
+**為什麼不用 rename 接手**：把鎖 rename 成墓碑再判斷，偷到別人的新鎖時要放回原位，放回前又可能有第三個執行建立鎖，等於把窄窗換個位置。OS 鎖沒有這個問題。
+
+**證據**：`test_two_runs_reclaiming_one_stale_lock_do_not_both_own_the_workdir` 在 B 判定過期之後插入 A 的回收動作；修前 `DID NOT RAISE`（A 的鎖被刪），修後通過。另以 6 個行程同時回收同一個過期鎖跑 5 輪，每輪恰好 1 個取得。

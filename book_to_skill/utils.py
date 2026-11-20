@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import glob
 import json
 import os
@@ -1433,6 +1434,50 @@ def _lock_holder_pid(lock: Path):
 
 
 _LOCK_SETTLE_SECONDS = 2.0
+_RECLAIM_GUARD_TIMEOUT_SECONDS = 10.0
+
+
+@contextlib.contextmanager
+def _reclaim_guard(lock: Path):
+    """Serialize lock creation and stale-lock deletion across processes.
+
+    Uses an OS file lock on a sibling file that is never deleted. The OS drops
+    the lock when its holder exits, so a crashed run cannot leave the guard
+    stuck the way it can leave a stale workdir lock.
+    """
+    guard = lock.with_name(lock.name + ".guard")
+    fd = os.open(guard, os.O_CREAT | os.O_RDWR, 0o600)
+    try:
+        if os.name == "nt":
+            import msvcrt
+
+            deadline = time.monotonic() + _RECLAIM_GUARD_TIMEOUT_SECONDS
+            while True:
+                try:
+                    msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+                    break
+                except OSError:
+                    if time.monotonic() >= deadline:
+                        raise ExtractionError(
+                            f"Could not take the workdir lock guard {guard}: another "
+                            "run holds it. Set BOOK_SKILL_WORKDIR to a private path."
+                        ) from None
+                    time.sleep(0.01)
+            try:
+                yield
+            finally:
+                os.lseek(fd, 0, os.SEEK_SET)
+                msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+
+            fcntl.flock(fd, fcntl.LOCK_EX)
+            try:
+                yield
+            finally:
+                fcntl.flock(fd, fcntl.LOCK_UN)
+    finally:
+        os.close(fd)
 
 
 def _lock_is_unwritten(lock: Path) -> bool:
@@ -1466,9 +1511,19 @@ def claim_workdir(workdir: Path = None) -> Path:
 
     # Check-then-write alone lets two runs started together both see "free" and
     # the second write win in silence. Creating the lock exclusively makes the
-    # claim itself the arbiter. The winner writes its PID just after creating the
-    # file, so a lock that is still empty and fresh is a claim in progress, not a
-    # stale one: wait for it instead of deleting it.
+    # claim itself the arbiter.
+    #
+    # Reclaiming a stale lock is a read followed by a delete, and the verdict can
+    # be out of date by the time of the delete: another run may have reclaimed the
+    # same stale lock and written its own PID in between. Deleting that lock lets
+    # both runs own the workdir (reproduced on Windows: the winner has already
+    # closed its handle, so nothing blocks the delete). So every create and every
+    # delete happens under the reclaim guard, an OS lock that dies with its
+    # process, and a delete re-reads the lock under it first. A lock created under
+    # the guard is written before the guard is released, so readers under the
+    # guard never see a half-made claim. An empty lock can still come from a run
+    # that crashed mid-write or from an older version; while it is fresh it is a
+    # claim in progress, not a stale one: wait for it instead of deleting it.
     deadline = time.monotonic() + _LOCK_SETTLE_SECONDS
     final_pass = False
     while True:
@@ -1480,33 +1535,40 @@ def claim_workdir(workdir: Path = None) -> Path:
                 "Give this run its own directory: set BOOK_SKILL_WORKDIR to a "
                 "private path, or wait for the other run to finish."
             )
-        try:
-            fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-        except FileExistsError:
-            if time.monotonic() < deadline and _lock_is_unwritten(lock):
-                time.sleep(0.05)
-                continue
-            # Stale or our own lock: clear it and retry. A live holder is left
-            # in place and reported by the next pass.
-            if _lock_holder_pid(lock) is None:
-                try:
-                    lock.unlink(missing_ok=True)
-                except PermissionError:
-                    # The winner still has it open (Windows): it is not stale.
-                    pass
-            if time.monotonic() >= deadline:
-                if final_pass:
-                    raise ExtractionError(
-                        f"Could not claim extraction workdir {workdir}: another run "
-                        "keeps taking its lock. Set BOOK_SKILL_WORKDIR to a private path."
-                    )
-                final_pass = True
+        with _reclaim_guard(lock):
+            try:
+                fd = os.open(lock, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
+            except FileExistsError:
+                fd = None
             else:
-                time.sleep(0.05)
+                with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                    handle.write(str(os.getpid()))
+                return workdir
+        if time.monotonic() < deadline and _lock_is_unwritten(lock):
+            time.sleep(0.05)
             continue
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(str(os.getpid()))
-        return workdir
+        # Stale or our own lock: clear it and retry. A live holder is left in
+        # place and reported by the next pass.
+        if _lock_holder_pid(lock) is None:
+            with _reclaim_guard(lock):
+                still_stale = _lock_holder_pid(lock) is None and not (
+                    time.monotonic() < deadline and _lock_is_unwritten(lock)
+                )
+                if still_stale:
+                    try:
+                        lock.unlink(missing_ok=True)
+                    except PermissionError:
+                        # Still open in another process (Windows): not stale.
+                        pass
+        if time.monotonic() >= deadline:
+            if final_pass:
+                raise ExtractionError(
+                    f"Could not claim extraction workdir {workdir}: another run "
+                    "keeps taking its lock. Set BOOK_SKILL_WORKDIR to a private path."
+                )
+            final_pass = True
+        else:
+            time.sleep(0.05)
 
 
 def release_workdir(workdir: Path = None) -> None:
