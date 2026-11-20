@@ -79,10 +79,10 @@ rules:
   message: '*subprocess*'
   reason: 已人工審查：測試 helper 以 shell false 的固定 argv 陣列呼叫 git，輸入為測試常數且有 30 秒 timeout，不拼接 shell。
 fingerprints:
-- hash: sha256:023754c860929fd2c2b702cec1c94d5490265a9be0fc17a021c73206890cd035
+- hash: sha256:21391c5b698f9cc892b72958bb571fdf471c1a52316e95ff51243e54820630af
   rule_id: AE4
   file: tests/test_book_to_skill.py
-  reason: 已人工審查：測試刻意含 Unicode 正規化與控制字元樣本以驗證 sanitizer，另含古木基、僧伽羅、天城體等多種文字的章節標題樣本以驗證各語系偵測，不含偽裝指令或機密。2026-10-24 新增旁遮普文與僧伽羅文案例後換雜湊；2026-10-28 新增希伯來文章節標題案例（含 RLE／PDF 雙向控制字元以 chr() 組出，驗證清理後仍能偵測）後再換雜湊。2026-11-09 新增亞美尼亞文、僧伽羅文 අධ්යාය 與 CLI 進入點測試後換雜湊
+  reason: 已人工審查：測試刻意含 Unicode 正規化與控制字元樣本以驗證 sanitizer，另含古木基、僧伽羅、天城體等多種文字的章節標題樣本以驗證各語系偵測，不含偽裝指令或機密。2026-10-24 新增旁遮普文與僧伽羅文案例後換雜湊；2026-10-28 新增希伯來文章節標題案例（含 RLE／PDF 雙向控制字元以 chr() 組出，驗證清理後仍能偵測）後再換雜湊。2026-11-09 新增亞美尼亞文、僧伽羅文 අධ්යාය 與 CLI 進入點測試後換雜湊；2026-11-20 新增 DOCX 定位點定義測試後換雜湊（純 ASCII XML 樣本）
 - hash: sha256:e92667c2c4e30900d56935bb99b5add448e2a3f42df4342c9ecddd371a4f65ed
   rule_id: AST4
   file: book_to_skill/dependencies.py
@@ -111,18 +111,22 @@ fingerprints:
   rule_id: AST7
   file: tests/test_html_block_boundaries.py
   reason: 自我指涉：tests/test_html_block_boundaries.py 使用 pytest parametrize 搭配 getattr 存取測試類別上固定的屬性名稱（皆為程式內寫死的常數字串），非任意屬性存取。
-- hash: sha256:d464dabf7b16cfa670ca92f07d7a3512980fe24a511fc6ecadde0a1b30401d50
+- hash: sha256:b478e82a857efd22d65d977fdd63eadf9dc352b8571db011115282e08f139948
   rule_id: AST4
   file: tests/test_workdir_lock.py
-  reason: 自我指涉：測試啟動一個固定執行 30 秒的 Python 子程序，驗證 workdir 鎖能辨識仍存活的不同 PID（含競態與寫入中空鎖兩個重現測試）；命令與參數皆為測試內常數，且 finally 會終止並等待子程序。
-- hash: sha256:1c59df01ba7ccd23151b8a275efbf1cc10fed236fc86b08d5776634b996d6b46
+  reason: 自我指涉：測試啟動一個固定執行 30 秒的 Python 子程序，驗證 workdir 鎖能辨識仍存活的不同 PID（含競態、寫入中空鎖與兩個執行同時回收過期鎖三個重現測試）；命令與參數皆為測試內常數，且 finally 會終止並等待子程序。
+- hash: sha256:ab5129ae72b3c3255363e1bcf8475c5fb81071db4cf31698f28877fe7c51e6e4
   rule_id: AST4
   file: tests/test_workdir_lock.py
-  reason: 自我指涉：測試啟動一個固定執行 30 秒的 Python 子程序，驗證 workdir 鎖能辨識仍存活的不同 PID（含競態與寫入中空鎖兩個重現測試）；命令與參數皆為測試內常數，且 finally 會終止並等待子程序。
-- hash: sha256:779cf503424d0e85f7a0843ff0a54f445c7188c171e0dcc01f29f95b30038c1a
+  reason: 自我指涉：測試啟動一個固定執行 30 秒的 Python 子程序，驗證 workdir 鎖能辨識仍存活的不同 PID（含競態、寫入中空鎖與兩個執行同時回收過期鎖三個重現測試）；命令與參數皆為測試內常數，且 finally 會終止並等待子程序。
+- hash: sha256:ea3ab9fa563fe50d72e37991a084c2da065b7caee3b96e35d5d9dcec34cc2382
   rule_id: AST4
   file: tests/test_workdir_lock.py
-  reason: 自我指涉：測試啟動一個固定執行 30 秒的 Python 子程序，驗證 workdir 鎖能辨識仍存活的不同 PID（含競態與寫入中空鎖兩個重現測試）；命令與參數皆為測試內常數，且 finally 會終止並等待子程序。
+  reason: 自我指涉：測試啟動一個固定執行 30 秒的 Python 子程序，驗證 workdir 鎖能辨識仍存活的不同 PID（含競態、寫入中空鎖與兩個執行同時回收過期鎖三個重現測試）；命令與參數皆為測試內常數，且 finally 會終止並等待子程序。
+- hash: sha256:8f6491358f2b8cb09eaed1013311b4040f6c1034991824c0f31a232d00a147d2
+  rule_id: AST4
+  file: tests/test_workdir_lock.py
+  reason: 自我指涉：測試啟動一個固定執行 30 秒的 Python 子程序，驗證 workdir 鎖能辨識仍存活的不同 PID（含競態、寫入中空鎖與兩個執行同時回收過期鎖三個重現測試）；命令與參數皆為測試內常數，且 finally 會終止並等待子程序。
 - hash: sha256:124828d07091cbbd3d74ab158d870590f1d695ea9911fd610f5c7e68e3c6bd9c
   rule_id: AST4
   file: tests/test_stage_scan_input.py
@@ -223,19 +227,19 @@ fingerprints:
   rule_id: RA2
   file: SKILL.md
   reason: "2026-10-24 隨 SkillSpector 2.12.0 審閱：安裝路徑說明（把 SKILLS_HOME 設為 ~/.agents/skills），是技能落地位置的規格，不是跨 session 持久化指令。"
-- hash: sha256:8bc33193da38ab17d4b30b810b31335f9db0e6439a7a6e15b48cf741fb3d054a
+- hash: sha256:ed4efe4fb715980ba4f233126540c785df40bcab3e5ff899c09e238259421698
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：文件明確禁止推送 upstream，並要求只推 SanHsien origin；這是安全邊界說明，不是參數濫用指令。雜湊綁檔案內容，每次追加決策條目都會換。
-- hash: sha256:7bb573100dcaaa8b6ef3b283ffdca4f3f2b4f2c6194468fd34cf6fce389b5c05
+- hash: sha256:5244b47ab684df9cec8f0e377127a3d80f44cb8a541353e4a7e156ffa32e6bfe
   rule_id: TM1
   file: docs/DECISIONS.md
   reason: 已人工審查：同一段禁止推送 upstream 的 normalized view；沒有執行路徑，且保留此文字能防止誤推母 repo。雜湊綁檔案內容，每次追加決策條目都會換。
-- hash: sha256:899584206861f8b2139d6f630ae6cd085b790c18eba8c887aeb7dbeb4e1250a7
+- hash: sha256:eef42d38b17c71ac089be61e2dc844d4ed467bc2013616870f865bc7ea515348
   rule_id: RP1
   file: docs/DECISIONS.md
   reason: "2026-10-24 隨 SkillSpector 2.12.0 審閱：決策紀錄在說明發布說明裡的 `npx skills` 已固定為 skills@1.5.23，本身就是鎖版的紀錄，不是要執行的未鎖版指令。"
-- hash: sha256:468a293fd45f23c260a6b46bf35f8ff9ddfcb39c7e56a648fa9e481c6ab7c5ea
+- hash: sha256:a1aceccfb9721e51d2a198e18b941c5a8237bc59814deda19159efdbb1834d47
   rule_id: RP1
   file: docs/DECISIONS.md
   reason: "2026-10-24 隨 SkillSpector 2.12.0 審閱：決策紀錄在說明發布說明裡的 `npx skills` 已固定為 skills@1.5.23，本身就是鎖版的紀錄，不是要執行的未鎖版指令。"
