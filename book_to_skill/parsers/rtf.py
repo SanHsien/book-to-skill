@@ -6,46 +6,88 @@ from book_to_skill.parsers.text import read_text_file
 from book_to_skill.exceptions import ExtractionError
 
 
-# RTF unicode escape: \uN (signed decimal) followed by its fallback char(s).
-# Decode the code point and drop the standard single fallback — a \'XX hex byte
-# or a literal "?". Assumes the default \uc1 (one fallback char); \ucN directives
-# and multi-char/group fallbacks are not parsed (best-effort fallback only).
-_RTF_UNICODE = re.compile(r"\\u(-?\d+)[ ]?(?:\\'[0-9a-fA-F]{2}|\?)?")
+# RTF unicode escape: \uN (signed decimal), and \ucN, which says how many
+# fallback characters follow each \uN for readers that cannot decode it. A
+# reader that decodes \uN must skip that many (RTF spec; the default is \uc1).
+# \ucN is scoped to its group, so braces are tracked too.
+_RTF_UNICODE_TOKEN = re.compile(r"\\uc(\d+) ?|\\u(-?\d+) ?|[{}]")
+_RTF_HEX_BYTE = re.compile(r"\\'[0-9a-fA-F]{2}")
 _RTF_HEX_RUN = re.compile(r"(?:\\'[0-9a-fA-F]{2})+")
 _RTF_ANSI_CODEPAGE = re.compile(r"\\ansicpg(\d+)")
 
 
-def _rtf_unicode_repl(match: re.Match) -> str:
-    cp = int(match.group(1)) % 0x10000      # RTF uses signed 16-bit; wrap negatives
-    if cp == 0 or 0xD800 <= cp <= 0xDFFF:   # NUL and lone surrogates: unwanted in text
+def _rtf_unicode_repl(code: int) -> str:
+    if code == 0 or 0xD800 <= code <= 0xDFFF:   # NUL and lone surrogates: unwanted in text
         return ""
-    return chr(cp)
+    return chr(code)
+
+
+def _skip_unicode_fallback(raw: str, index: int, count: int) -> int:
+    r"""Return the index after the ``count`` fallback characters at ``index``.
+
+    A fallback character is one ``\'hh`` byte or one literal character. The
+    skip never crosses a group boundary. It also stops at whitespace and at any
+    other control word: the spec would count those too, but in practice they
+    mean the writer left the fallback out, and swallowing them would lose real
+    text (for example the next ``\uN`` of a surrogate pair).
+    """
+    length = len(raw)
+    while count > 0 and index < length:
+        hex_byte = _RTF_HEX_BYTE.match(raw, index)
+        if hex_byte:
+            index = hex_byte.end()
+        elif raw[index] in "\\{}" or raw[index].isspace():
+            break
+        else:
+            index += 1
+        count -= 1
+    return index
 
 
 def _decode_rtf_unicode(raw: str) -> str:
-    """Combine adjacent UTF-16 surrogate escapes before dropping lone halves."""
+    r"""Decode \uN escapes, skip their fallbacks and pair UTF-16 surrogates."""
     out: list[str] = []
     cursor = 0
-    escapes = iter(_RTF_UNICODE.finditer(raw))
-    match = next(escapes, None)
-    while match is not None:
+    skip = 1                 # current \ucN value
+    saved: list[int] = []    # \ucN of the enclosing groups
+    pending_high = None      # (code, end of its fallback, index in out)
+    position = 0
+    while True:
+        match = _RTF_UNICODE_TOKEN.search(raw, position)
+        if match is None:
+            break
+        token = match.group(0)
+        if token == "{":
+            saved.append(skip)
+            position = match.end()
+            continue
+        if token == "}":
+            if saved:
+                skip = saved.pop()
+            position = match.end()
+            continue
         out.append(raw[cursor:match.start()])
-        high = int(match.group(1)) % 0x10000
-        following = next(escapes, None)
+        if match.group(1) is not None:
+            skip = int(match.group(1))
+            cursor = position = match.end()
+            continue
+        code = int(match.group(2)) % 0x10000   # RTF uses signed 16-bit; wrap negatives
+        end = _skip_unicode_fallback(raw, match.end(), skip)
         if (
-            0xD800 <= high <= 0xDBFF
-            and following is not None
-            and following.start() == match.end()
+            pending_high is not None
+            and pending_high[1] == match.start()
+            and 0xDC00 <= code <= 0xDFFF
         ):
-            low = int(following.group(1)) % 0x10000
-            if 0xDC00 <= low <= 0xDFFF:
-                out.append(chr(0x10000 + (high - 0xD800) * 0x400 + low - 0xDC00))
-                cursor = following.end()
-                match = next(escapes, None)
-                continue
-        out.append(_rtf_unicode_repl(match))
-        cursor = match.end()
-        match = following
+            high = pending_high[0]
+            out[pending_high[2]] = chr(0x10000 + (high - 0xD800) * 0x400 + code - 0xDC00)
+            pending_high = None
+        elif 0xD800 <= code <= 0xDBFF:
+            out.append("")     # dropped unless a low surrogate follows directly
+            pending_high = (code, end, len(out) - 1)
+        else:
+            out.append(_rtf_unicode_repl(code))
+            pending_high = None
+        cursor = position = end
     out.append(raw[cursor:])
     return "".join(out)
 
@@ -170,8 +212,8 @@ def strip_rtf_fallback(raw: str) -> str:
     )
     ansi_encoding = _rtf_ansi_encoding(raw)
     raw = _decode_rtf_unicode(raw)   # decode \uN escapes first
-    # A hex byte immediately following \uN is its compatibility fallback and
-    # was consumed by _RTF_UNICODE above. Any remaining \'hh escapes are actual
+    # Hex bytes immediately following \uN are its compatibility fallback and
+    # were skipped above, as many as \ucN says. Any remaining \'hh escapes are actual
     # document text. Decode adjacent bytes as a run so multibyte code pages work.
     raw = _RTF_HEX_RUN.sub(
         lambda match: _decode_hex_run(match, ansi_encoding), raw
