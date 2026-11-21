@@ -30,6 +30,12 @@ Exit codes (the contract the workflows depend on; ``--strict`` only changes 0 in
 * 1 -- ``--strict`` and something is pending review
 * 2 -- the check could not be completed: bad baseline, git/gh failure, a listing that hit its
   cap before reaching the watermark, or any unexpected crash. Never confused with 1.
+  (A capped listing whose unreached numbers are all listed items of the other ticket kind is
+  complete: PRs and issues share one number sequence.)
+
+Report size: the ``--output`` file is abridged (per-table row cap, each cut counted) to stay under
+the 1024 KiB ``$GITHUB_STEP_SUMMARY`` limit; standard output always carries the full report. The
+exit code is computed from the findings, so abridging never changes it.
 """
 
 from __future__ import annotations
@@ -66,6 +72,10 @@ TICKET_LIMIT_CAP = 1000
 # Every external call is bounded: a hung `git fetch` or `gh` must end as exit 2, not as a CI job
 # that runs until the platform kills it.
 GIT_TIMEOUT = 1200
+# The report file is appended to `$GITHUB_STEP_SUMMARY`, which GitHub rejects whole above 1024 KiB.
+# Stay well below it so a workflow that adds a line or two of its own still fits.
+REPORT_BYTE_BUDGET = 900 * 1024
+ABRIDGED_ROW_CAPS = (1000, 500, 200, 100, 50, 20, 0)
 GH_TIMEOUT = 180
 HTTP_TIMEOUT = 20
 
@@ -413,6 +423,14 @@ class TicketScan:
     deferred: int = 0
     cutoff: str | None = None
     lowest_deferred: int | None = None
+    # Every number the listing returned (above the watermark or not) and the lowest of them.
+    # The listing is newest first and contiguous, so it covers every item of its kind from
+    # ``floor`` up; the numbers between the watermark and ``floor`` are what a capped scan missed.
+    listed: frozenset = frozenset()
+    floor: int | None = None
+    watermark: int = 0
+    # Numbers in the unreached gap that the other ticket kind does not account for.
+    unknown_gap: int | None = None
 
 
 def _list_tickets(slug: str, kind: str, limit: int) -> list[dict] | str | None:
@@ -500,13 +518,38 @@ def collect_new_tickets(
             (item for item in items if item["number"] > watermark),
             key=lambda item: item["number"],
         )
+        listed = frozenset(item["number"] for item in items)
+        floor = min(listed) if listed else None
         # `gh` lists newest first. The listing is complete once it ran out of items (fewer than
-        # asked for) or already contains something at or below the watermark.
-        if len(items) < limit or any(item["number"] <= watermark for item in items):
-            return defer_after(TicketScan(new, True, limit), cutoff)
-        if limit >= cap:
-            return defer_after(TicketScan(new, False, limit), cutoff)
+        # asked for) or reached `#watermark+1` or below: nothing above the watermark is missing.
+        complete = len(items) < limit or (floor is not None and floor <= watermark + 1)
+        if complete or limit >= cap:
+            found = TicketScan(new, complete, limit, listed=listed, floor=floor)
+            found.watermark = watermark
+            return defer_after(found, cutoff)
         limit = min(limit * 2, cap)
+
+
+def close_shared_number_gaps(prs: TicketScan | None, issues: TicketScan | None) -> None:
+    """Mark a capped scan complete when the other ticket kind accounts for its whole gap.
+
+    GitHub numbers pull requests and issues from one sequence, so a number the issue listing
+    returned is not a pull request (and the reverse). A capped scan missed only the numbers between
+    its watermark and the lowest number it listed; if every one of them is a listed item of the
+    other kind, nothing of this kind can be hiding there. One number neither listing returned (a
+    deleted or transferred issue, a listing that was itself capped) could be anything, so the scan
+    stays incomplete and the report bounds the count instead. Mutates the scans in place.
+    """
+    for scan, other in ((prs, issues), (issues, prs)):
+        if scan is None or scan.complete or scan.floor is None:
+            continue
+        if other is None or other.disabled:
+            scan.unknown_gap = scan.floor - scan.watermark - 1
+            continue
+        gap = range(scan.watermark + 1, scan.floor)
+        scan.unknown_gap = sum(1 for number in gap if number not in other.listed)
+        if scan.unknown_gap == 0:
+            scan.complete = True
 
 
 def collect_branch_changes(baseline: dict, repo_dir: Path) -> list[dict]:
@@ -628,8 +671,31 @@ def _cell(text: object) -> str:
     return " ".join(str(text).split()).replace("|", "\\|")
 
 
+def _limited(rows: list, max_rows: int | None) -> tuple[list, int]:
+    """The first ``max_rows`` rows and how many were left out (``None`` keeps them all)."""
+    if max_rows is None or len(rows) <= max_rows:
+        return rows, 0
+    return rows[:max_rows], len(rows) - max_rows
+
+
+def _hidden_note(hidden: int, noun: str) -> list[str]:
+    if not hidden:
+        return []
+    return [
+        "",
+        f"**{hidden} more {noun}(s) not shown** -- this report was abridged to fit the GitHub",
+        "step summary limit. The complete list is in the job log (this check's standard output).",
+        "The counts and the exit code above cover every item, shown or not.",
+    ]
+
+
 def render_ticket_section(
-    title: str, watermark: int, scan: TicketScan | None, kind: str, decision_log: str
+    title: str,
+    watermark: int,
+    scan: TicketScan | None,
+    kind: str,
+    decision_log: str,
+    max_rows: int | None = None,
 ) -> list[str]:
     lines = [f"## {title}", "", f"Triaged through `#{watermark}`.", ""]
     if scan is None:
@@ -679,11 +745,29 @@ def render_ticket_section(
                 "",
             ]
         )
+        if scan.floor is not None and scan.floor > watermark + 1:
+            gap = scan.floor - watermark - 1
+            unknown = gap if scan.unknown_gap is None else scan.unknown_gap
+            low = len(tickets) + scan.deferred
+            lines.extend(
+                [
+                    f"Numbers `#{watermark + 1}`–`#{scan.floor - 1}` were never reached; "
+                    f"{gap - unknown} of them",
+                    f"are known to be the other ticket kind. The true count above `#{watermark}` "
+                    f"is between {low} and {low + unknown}",
+                    "(unknown beyond the limit). Raising the watermark past any of those numbers "
+                    "would skip them unseen.",
+                    f"To list them all, run with `--ticket-cap {scan.limit + unknown}` or higher.",
+                    "",
+                ]
+            )
     if tickets:
         lines.extend(["| Item | Title |", "| --- | --- |"])
+        shown, hidden = _limited(tickets, max_rows)
         lines.extend(
-            f"| #{ticket['number']} | {_cell(ticket.get('title', ''))} |" for ticket in tickets
+            f"| #{ticket['number']} | {_cell(ticket.get('title', ''))} |" for ticket in shown
         )
+        lines.extend(_hidden_note(hidden, "item"))
         lines.append("")
     lines.extend(
         [
@@ -695,7 +779,9 @@ def render_ticket_section(
     return lines
 
 
-def render_branch_section(changes: list[dict], baseline: dict, decision_log: str) -> list[str]:
+def render_branch_section(
+    changes: list[dict], baseline: dict, decision_log: str, max_rows: int | None = None
+) -> list[str]:
     known = ", ".join(
         f"`{name}`"
         for name in sorted(
@@ -707,9 +793,11 @@ def render_branch_section(changes: list[dict], baseline: dict, decision_log: str
         return [*lines, "No branches beyond, or moved since, the registered ones.", ""]
     lines.extend([f"{len(changes)} branch(es) to triage.", "", "| Branch | Head | Previously |"])
     lines.append("| --- | --- | --- |")
-    for change in changes:
+    shown, hidden = _limited(changes, max_rows)
+    for change in shown:
         previous = f"`{change['previous'][:7]}`" if change["previous"] else "(new)"
         lines.append(f"| `{_cell(change['name'])}` | `{change['short']}` | {previous} |")
+    lines.extend(_hidden_note(hidden, "branch"))
     lines.extend(
         [
             "",
@@ -722,7 +810,7 @@ def render_branch_section(changes: list[dict], baseline: dict, decision_log: str
 
 
 def render_monitored_section(
-    baseline: dict, stale: list[dict] | None, decision_log: str
+    baseline: dict, stale: list[dict] | None, decision_log: str, max_rows: int | None = None
 ) -> list[str]:
     lines = [
         "## Monitored upstream items (conditional verdicts)",
@@ -747,7 +835,9 @@ def render_monitored_section(
             "| --- | --- | --- |",
         ]
     )
-    lines.extend(f"| {e['item']} | `{e['was']}` | `{e['now']}` |" for e in stale)
+    shown, hidden = _limited(stale, max_rows)
+    lines.extend(f"| {e['item']} | `{e['was']}` | `{e['now']}` |" for e in shown)
+    lines.extend(_hidden_note(hidden, "pinned item"))
     lines.extend(
         [
             "",
@@ -779,6 +869,7 @@ def render_markdown(
     release: str | None = None,
     status: dict | None = None,
     status_error: str | None = None,
+    max_rows: int | None = None,
 ) -> str:
     decision_log = baseline.get("decision_log", DEFAULT_DECISION_LOG)
     track = baseline.get("track", "commit")
@@ -820,7 +911,8 @@ def render_markdown(
             "| --- | --- | --- | --- |",
         ]
     )
-    for commit in commits:
+    shown, hidden = _limited(commits, max_rows)
+    for commit in shown:
         files = "<br>".join(_cell(item) for item in commit["files"][:8])
         if len(commit["files"]) > 8:
             files += f"<br>… +{len(commit['files']) - 8} more"
@@ -828,6 +920,7 @@ def render_markdown(
             f"| `{commit['short']}` | {commit['date']} | {_cell(commit['subject'])} "
             f"| {files or '(none)'} |"
         )
+    lines.extend(_hidden_note(hidden, "commit"))
     lines.extend(
         [
             "",
@@ -911,6 +1004,7 @@ def gather(args: argparse.Namespace) -> Findings:
             findings.commits = collect_new_commits(baseline, repo_dir, branch_ref)
         findings.prs = collect_new_tickets(baseline, "pr", repo_dir, args.ticket_cap, cutoff)
         findings.issues = collect_new_tickets(baseline, "issue", repo_dir, args.ticket_cap, cutoff)
+        close_shared_number_gaps(findings.prs, findings.issues)
         if branch_axis_enabled(baseline):
             findings.branches = collect_branch_changes(baseline, repo_dir)
         if "monitored" in baseline:
@@ -927,7 +1021,8 @@ def gather(args: argparse.Namespace) -> Findings:
     return findings
 
 
-def build_report(findings: Findings) -> str:
+def build_report(findings: Findings, max_rows: int | None = None) -> str:
+    """The Markdown report; ``max_rows`` caps each table (left-out rows are counted, not lost)."""
     baseline = findings.baseline
     report = render_markdown(
         baseline,
@@ -936,6 +1031,7 @@ def build_report(findings: Findings) -> str:
         findings.release,
         findings.status,
         findings.status_error,
+        max_rows,
     )
     if findings.error:
         return report
@@ -947,6 +1043,7 @@ def build_report(findings: Findings) -> str:
         findings.prs,
         "pr",
         log,
+        max_rows,
     )
     lines += render_ticket_section(
         "Upstream issues",
@@ -954,14 +1051,39 @@ def build_report(findings: Findings) -> str:
         findings.issues,
         "issue",
         log,
+        max_rows,
     )
     if branch_axis_enabled(baseline):
-        lines += render_branch_section(findings.branches or [], baseline, log)
+        lines += render_branch_section(findings.branches or [], baseline, log, max_rows)
     if "monitored" in baseline:
-        lines += render_monitored_section(baseline, findings.monitored, log)
+        lines += render_monitored_section(baseline, findings.monitored, log, max_rows)
     if findings.website is not None:
         lines += render_website_section(findings.website)
     return "\n".join(lines)
+
+
+def fit_report(findings: Findings, budget: int = REPORT_BYTE_BUDGET) -> str:
+    """The full report, or the largest per-table row cap whose report fits in ``budget`` bytes.
+
+    Workflows append the report file to ``$GITHUB_STEP_SUMMARY``, which GitHub refuses whole above
+    1024 KiB (rea: 1355k -- the reviewer saw nothing at all). Only table rows are dropped, each
+    table says how many it left out, and the verdict is computed from the findings, never from
+    the text, so abridging cannot turn pending or incomplete into clean.
+    """
+    full = build_report(findings)
+    if len(full.encode("utf-8")) <= budget:
+        return full
+    for rows in ABRIDGED_ROW_CAPS:
+        abridged = build_report(findings, max_rows=rows)
+        if len(abridged.encode("utf-8")) <= budget:
+            break
+    head, _, rest = abridged.partition("\n\n")
+    notice = (
+        "> **This report is abridged** to fit the GitHub step summary limit: long tables show "
+        "their first rows and say how many were left out. The complete report is in the job log "
+        "(this check's standard output)."
+    )
+    return f"{head}\n\n{notice}\n\n{rest}"
 
 
 def unchecked_axes(findings: Findings) -> list[str]:
@@ -1041,9 +1163,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     try:
         findings = gather(args)
-        report = build_report(findings)
-        Path(args.output).write_text(report, encoding="utf-8")
-        emit(report)
+        # The file may be abridged for the step summary; the job log always gets everything.
+        Path(args.output).write_text(fit_report(findings), encoding="utf-8")
+        emit(build_report(findings))
         code, message = exit_code(findings, args.strict)
         if message:
             emit(message)
